@@ -1,255 +1,95 @@
-# App Starter
+# Meridian Protocol
 
-A multi-tenant SaaS starter. NestJS and Next.js in a Turborepo, with the parts
-every SaaS needs already wired together: authentication, organizations with
-roles and invites, per-tenant custom domains, and a notification engine.
+Meridian is a multi-tenant reconciliation platform that traces whether positive mental health screenings receive timely follow-up assessments within two business days. It pairs a deterministic reconciliation engine with a knowledge layer that links every decision back to source evidence — publications, procedures, and policy documents — so QI analysts can see not just what happened, but why.
 
-Billing is deliberately not included — payment provider and pricing model vary
-too much between products for a starter to choose for you.
+The entire process — from problem definition and deep research using Perplexity and Google's LLMs to frame the healthcare quality gap, through narrowing the scope, to building and iterating on the full-stack implementation — was completed within this hackathon.
 
-It ships with one small example vertical — Projects — so the patterns are
-visible end to end without burying them in a domain you have to delete.
+## Inspiration
 
-## What you get
+Healthcare quality improvement teams spend hours manually tracing whether positive mental health screenings receive timely follow-up assessments. The rules are buried in policy documents, the data lives in disconnected systems, and the audit trail is a spreadsheet. We wanted to build a system where the reconciliation logic is transparent, every decision traces back to the source evidence that defines it, and the knowledge corpus is explorable — not just searchable.
 
-|                    |                                                                                   |
-| ------------------ | --------------------------------------------------------------------------------- |
-| **Auth**           | Email + password, OTP, Google OAuth, email verification, JWT with refresh cookies |
-| **Multi-tenancy**  | Organizations with `OWNER` / `ADMIN` / `MEMBER`, invite links, member management  |
-| **Custom domains** | Per-tenant domains with DNS verification and white-label branding                 |
-| **Notifications**  | Email and in-app, with per-user channel preferences                               |
-| **Admin**          | User search, quarantine, and impersonation — both fully audited                   |
-| **Storage**        | Provider interface with local and S3/R2 implementations                           |
+## What it does
 
-## Requirements
+Meridian answers one critical question: *Did each positive PHQ-9 screen get a follow-up C-SSRS assessment within two business days?*
 
-- Node 22+ (`.nvmrc` pins it)
-- pnpm 8+
-- Docker with Compose, or Podman — PostgreSQL and Redis are both required, and
-  `docker compose` runs them for you
+It ingests screening events and assessment events, runs a deterministic reconciliation engine that classifies each screen by eligibility and linkage outcome, and presents results through both a data table and a visual pairing view with timeline visualization. A "Company Brain" module connects the reconciliation decisions back to source documents — publications, procedures, and policy memos — so analysts can see *why* a decision was made, not just *what* it was.
 
-## Setup
+## How we built it
+
+- **Research**: Perplexity and Google LLMs for deep research to frame the healthcare quality gap, define the problem scope, and narrow to a viable hackathon deliverable.
+- **Backend**: NestJS + Prisma + PostgreSQL with a pure-function reconciliation engine that computes eligibility, business-day windows (accounting for weekends and holidays), and linkage state for every screen.
+- **Frontend**: Next.js App Router + Tailwind + shadcn/Radix components, with a visual pairing view (screen-to-assessment card pairs with color-coded connectors), donut chart summary dashboard, and business-day timeline.
+- **Knowledge layer**: HydraDB-backed document store with cross-collection unified search, provenance linking (decisions traced to source passages), graph context rendering showing how publications inform protocols, and a document upload UI.
+- **Infrastructure**: Turborepo monorepo, pnpm workspaces, Docker (Postgres + Redis + Mailpit), with shared types across API and web to catch drift at compile time.
+
+## Challenges we ran into
+
+- **Field name drift** between the reconciliation engine and the frontend DTOs — the engine uses `matureEligible` and `absentLink` while the UI expected `mature` and `absent`. This produced a page full of zeros that looked like missing data but was actually a mapping bug.
+- **Multi-tenant data isolation** made debugging harder: seed data lived in one organization while the logged-in user was navigating a different one, so everything appeared empty despite the database being full.
+- **Business-day calculation** across weekends and holidays (e.g., a Friday screen before Labor Day) required careful timezone-aware logic to get the two-day window right.
+
+## Accomplishments that we're proud of
+
+- The reconciliation engine is a **pure deterministic function** — same inputs, same outputs, every time. No AI in the decision loop.
+- Every decision can be **traced back to source evidence** via provenance linking, closing the loop between "what happened" and "why the rule says so."
+- The visual pairing view makes screen-to-assessment matches **visible at a glance** — blue connectors for within-window, amber for late, dashed grey for missing, with expandable business-day timelines.
+- Seven features shipped end-to-end (migration, service, DTO, API client, UI) in a single session.
+
+## What we learned
+
+- Building across the full stack in one pass catches integration bugs immediately — splitting backend and frontend into separate tasks is where field names drift apart.
+- Multi-tenant systems need seed data that matches the actual user's org membership, or demo day is a blank screen.
+- A "Company Brain" is fundamentally different from a search box — it's about showing connections between documents, not just listing results.
+
+## What's next for Meridian
+
+- **Live reconciliation streaming** — run the engine incrementally as new screens arrive instead of batch-triggering.
+- **AI-assisted review** — use Claude to summarize ambiguous decisions and suggest resolution paths, while keeping the deterministic engine as the source of truth.
+- **Multi-protocol support** — extend beyond PHQ-9/C-SSRS to arbitrary screen-assessment protocol pairs defined by each organization.
+- **FHIR integration** — ingest screening and assessment events directly from EHR systems via FHIR R4 resources.
+- **Audit workflow** — built-in review queues with role-based assignments, sign-off chains, and exportable audit packages for regulatory submissions.
+
+## Tech Stack
+
+TypeScript, Next.js, NestJS, React, Prisma, PostgreSQL, Redis, Tailwind CSS, shadcn/ui, Radix UI, Turborepo, pnpm, Docker, Node.js, Claude
+
+## Getting Started
 
 ```bash
-git clone <this-repo>
-cd app-starter
-pnpm bootstrap
-```
+# Prerequisites: Docker, Node.js 22+, pnpm 8+
 
-Or skip the local toolchain entirely: `.devcontainer/` is configured, so
-**Code → Codespaces → Create codespace** on GitHub — or **Reopen in Container**
-in VS Code — gives you Node, pnpm, and Docker already installed and runs
-`pnpm bootstrap` for you. Nothing to install but the editor. In a
-browser-based Codespace, set `NEXT_PUBLIC_API_URL` to the forwarded URL for
-port 3001 and mark that port **Public**; `localhost` works as-is everywhere
-else.
+# Start infrastructure (Postgres, Redis, Mailpit)
+./scripts/bootstrap.sh
 
-`pnpm bootstrap` copies the env files, installs dependencies, starts Postgres,
-Redis, and Mailpit, applies migrations, and seeds. It is safe to re-run — it
-never overwrites an env file that already exists.
+# Install dependencies
+pnpm install
 
-Then:
+# Set up environment files
+cp apps/api/.env.example apps/api/.env
+cp apps/web/.env.example apps/web/.env.local
 
-```bash
+# Run migrations and seed data
+pnpm --filter @app-starter/api exec prisma migrate deploy
+pnpm --filter @app-starter/api exec prisma generate
+pnpm --filter @app-starter/api exec ts-node prisma/seed.ts
+pnpm --filter @app-starter/api exec ts-node prisma/seed-aegis.ts
+
+# Start dev servers
 pnpm dev
 ```
 
-|                    |                                |
-| ------------------ | ------------------------------ |
-| Web                | http://localhost:3000          |
-| API                | http://localhost:3001          |
-| API docs (Swagger) | http://localhost:3001/api/docs |
-| Mailpit            | http://localhost:8025          |
+|             |                        |
+| ----------- | ---------------------- |
+| Web         | http://localhost:3000   |
+| API         | http://localhost:3001   |
+| Mailpit     | http://localhost:8025   |
 
-Mailpit is a local inbox that catches every email the app sends — verification
-links, password resets, OTP codes, invites — so you can click through those
-flows without a mail provider. Nothing leaves your machine.
-
-The seed creates two accounts:
+### Seed accounts
 
 ```
-owner@example.com  / Password123!   (also a global admin)
+owner@example.com  / Password123!
 member@example.com / Password123!
 ```
-
-If you would rather set up by hand, see [Manual setup](#manual-setup). If
-something breaks, [`docs/troubleshooting.md`](docs/troubleshooting.md) has the
-failures you are most likely to hit and what actually fixes them.
-
-### Then build something
-
-[**`docs/first-feature.md`**](docs/first-feature.md) walks through adding one
-feature end to end with a coding assistant — the prompt to write, the ten files
-that should come back, and how to tell whether what you got is right. Start
-there if this is your first time in a codebase this size.
-
-Google sign-in, S3/R2 storage, a real SMTP provider, and custom domains are
-all optional and off by default.
-[`docs/integrations.md`](docs/integrations.md) covers what each one needs, how
-to get credentials, and what breaks without it.
-[`docs/providers.md`](docs/providers.md) recommends who to host them with.
-
-## Architecture
-
-```
-app-starter/
-├── apps/
-│   ├── api/                  NestJS + Prisma
-│   │   ├── prisma/           schema, migrations, seed
-│   │   └── src/
-│   │       ├── auth/         JWT, OAuth, OTP, guards
-│   │       ├── organizations/  tenants, members, invites, domains
-│   │       ├── projects/     the example vertical
-│   │       ├── notifications/  engine, templates, channels
-│   │       ├── users/        profiles
-│   │       ├── admin-*/      platform admin and impersonation
-│   │       └── common/       storage, guards, filters, utils
-│   └── web/                  Next.js App Router
-│       └── src/
-│           ├── app/          routes
-│           ├── components/   ui/ is the shared component set
-│           ├── hooks/
-│           └── lib/          API clients
-├── packages/shared/          types and constants used by both apps
-└── docker/postgres/
-```
-
-### Why one repository
-
-Two deployable apps, one repository. `apps/api` owns the database and business
-logic, `apps/web` owns the UI, and `packages/shared` holds the types and
-constants both import — as a workspace dependency, so a change to it is visible
-to both apps in the same commit with nothing to publish.
-
-The point is that a feature is **one change**. The migration, the endpoint, the
-DTO, the API client, and the screen land in a single commit: reviewable as a
-unit, revertible as a unit, and verified together by one `pnpm type-check`.
-Rename a shared field and both sides fail to compile immediately, rather than
-drifting apart until something breaks in an environment.
-
-**This matters most when you are building with a coding agent.** In one
-repository the agent can read the schema, the service, the DTO, the client, and
-the component in a single pass, so asking for a whole vertical slice — "add
-project archiving", schema through UI — produces a coherent change. Split
-across repositories, the same work becomes two conversations against two
-partial views, and the seam between them is where the mismatches land. Ask for
-the full slice, put anything crossing the boundary in `packages/shared`, and
-let the type checker confirm the two halves agree.
-
-[ADR 0009](docs/adr/0009-monorepo-over-separate-repositories.md) has the
-reasoning and the costs.
-
-Why the other pieces are what they are is recorded in
-[`docs/adr/`](docs/adr/README.md) — the framework choices, the
-frontend/backend split, the multi-tenancy model below, and why billing is
-left out.
-
-### How multi-tenancy works
-
-`Organization` is the tenant. Everything scoped to one carries an
-`organizationId`, and every query filters on it — a valid id from another
-tenant reads as 404 rather than revealing that the record exists.
-`ProjectsService` is the reference implementation; copy its shape.
-
-Role checks live in the service layer rather than a guard, because the
-organization id usually arrives as a route parameter that has to be resolved
-against the caller before a decision can be made. See
-[`docs/roles-and-permissions-guide.md`](docs/roles-and-permissions-guide.md).
-
-## Making it yours
-
-1. **Rename.** Replace `app-starter` in `package.json` files, `docker-compose.yml`,
-   and the `@app-starter/*` import scope. Update `apps/api/src/config/branding.ts`.
-2. **Replace Projects.** Delete `apps/api/src/projects` and
-   `apps/web/src/app/organizations/[organizationId]/projects`, then build your
-   own vertical on the same shape.
-3. **Add billing if you need it.** `Organization` is where it attaches — it
-   already has the identity and the membership list a seat count would use.
-   [ADR 0008](docs/adr/0008-no-billing-in-the-starter.md) explains why it is
-   left out and suggests a shape for entitlements.
-4. **Wire up the integrations you need** — Google sign-in, object storage,
-   SMTP, custom domains. See [`docs/integrations.md`](docs/integrations.md).
-5. **Before deploying,** read the checklist at the end of
-   [SECURITY.md](SECURITY.md).
-
-## Commands
-
-Run from the repository root:
-
-|                   |                                                     |
-| ----------------- | --------------------------------------------------- |
-| `pnpm dev`        | Start the API and web app                           |
-| `pnpm build`      | Build everything                                    |
-| `pnpm test`       | Run all tests                                       |
-| `pnpm verify`     | Type-check, lint, and test — the definition of done |
-| `pnpm lint`       | Lint everything                                     |
-| `pnpm type-check` | Type-check everything                               |
-| `pnpm clean`      | Remove build artifacts                              |
-| `pnpm format`     | Format with Prettier                                |
-
-Target one package with `--filter`:
-
-```bash
-pnpm --filter @app-starter/api dev
-pnpm --filter @app-starter/web test
-```
-
-### Database
-
-```bash
-cd apps/api
-pnpm exec prisma migrate dev --name describe_your_change   # create a migration
-pnpm exec prisma studio                                     # browse the data
-pnpm run prisma:seed                                        # re-seed
-```
-
-## Manual setup
-
-If you prefer not to use `pnpm bootstrap`:
-
-```bash
-cp .env.example .env
-cp apps/api/.env.example apps/api/.env
-cp apps/api/.env.test.example apps/api/.env.test
-cp apps/web/.env.example apps/web/.env.local
-
-pnpm install
-docker compose up -d
-
-pnpm --filter @app-starter/api exec prisma migrate deploy
-pnpm --filter @app-starter/api run prisma:seed
-```
-
-The root `.env` only sets the ports the containers publish; application
-configuration lives in the per-app files.
-
-Database defaults: `localhost:5432`, database / user / password all
-`app_starter`. See [`docker/postgres/README.md`](docker/postgres/README.md).
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md). The conventions the codebase follows
-are in [AGENTS.md](AGENTS.md), which doubles as context for coding assistants.
-
-## Security
-
-Please report vulnerabilities privately. See [SECURITY.md](SECURITY.md).
-
-## Provenance
-
-This started as Digo, an event-management platform we built for the tech
-community to share their events. The event domain was removed and what
-remained — authentication, organizations, notifications, custom domains,
-storage, and the admin surfaces — was generalised into a starter. The Projects
-example was written from scratch.
-
-The parts carried over have production mileage behind them. The parts that are
-new do not, though they are covered by tests.
-
-Much of the extraction was done with heavy AI assistance (Claude). The full
-suite passes — API unit and end-to-end, web, lint, type-check, build — and the
-result has been reviewed, but read what you are adopting before you build on
-it, as you would with any starter.
 
 ## License
 
