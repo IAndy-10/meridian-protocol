@@ -13,6 +13,16 @@ interface UseWebSocketReturn {
 const WS_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 export function useWebSocket(): UseWebSocketReturn {
+  // WebSocket notifications are a template feature not used by Meridian.
+  // Disabled to prevent connection errors in the console.
+  return {
+    connected: false,
+    lastNotification: null,
+    connectionError: null,
+    reconnect: () => {},
+  };
+
+  // Original implementation kept below for reference if notifications are re-enabled.
   const [connected, setConnected] = useState(false);
   const [lastNotification, setLastNotification] = useState<InAppNotification | null>(null);
   const [connectionError, setConnectionError] = useState<Error | null>(null);
