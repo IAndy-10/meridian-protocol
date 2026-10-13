@@ -27,7 +27,7 @@ fi
 
 # 4. Database
 echo "Running migrations..."
-pnpm --filter @app-starter/api exec prisma migrate dev --skip-generate 2>/dev/null || true
+pnpm --filter @app-starter/api exec prisma migrate deploy 2>/dev/null || true
 pnpm --filter @app-starter/api exec prisma generate
 
 echo "Seeding fixture data..."
