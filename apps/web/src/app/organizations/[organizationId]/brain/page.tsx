@@ -123,10 +123,11 @@ export default function BrainPage({ params }: PageProps) {
     ingestMutation.mutate();
   };
 
-  const totalSources = (sources?.length ?? 0);
+  const sourceItems = sources?.items ?? [];
+  const totalSources = sourceItems.length;
   const totalKnowledge = (knowledgeDocs?.total ?? 0);
-  const publications = sources?.filter((s: SourceArtifact) => s.kind === 'PUBLICATION').length ?? 0;
-  const procedures = sources?.filter((s: SourceArtifact) => s.kind === 'SYNTHETIC_PROCEDURE').length ?? 0;
+  const publications = sourceItems.filter((s) => s.kind === 'PUBLICATION').length;
+  const procedures = sourceItems.filter((s) => s.kind === 'SYNTHETIC_PROCEDURE').length;
 
   return (
     <PageContainer>
@@ -445,11 +446,11 @@ export default function BrainPage({ params }: PageProps) {
         )}
 
         {/* Source artifacts */}
-        {sources && sources.length > 0 && (
+        {sourceItems.length > 0 && (
           <Card>
             <CardHeader>
               <CardTitle className="text-base">
-                Source Artifacts ({sources.length})
+                Source Artifacts ({sourceItems.length})
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
@@ -462,7 +463,7 @@ export default function BrainPage({ params }: PageProps) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sources.map((s: SourceArtifact) => (
+                  {sourceItems.map((s: SourceArtifact) => (
                     <TableRow key={s.id}>
                       <TableCell className="text-sm">{s.title}</TableCell>
                       <TableCell>

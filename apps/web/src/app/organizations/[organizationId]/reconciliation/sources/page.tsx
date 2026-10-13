@@ -203,7 +203,7 @@ export default function SourcesPage({ params }: PageProps) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {sources?.map((s: SourceArtifact) => (
+                {sources?.items?.map((s: SourceArtifact) => (
                   <TableRow key={s.id}>
                     <TableCell className="text-sm">{s.title}</TableCell>
                     <TableCell>

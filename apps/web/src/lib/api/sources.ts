@@ -44,7 +44,7 @@ const basePath = (orgId: string) => `/api/organizations/${orgId}/sources`;
 
 export const sourcesApi = {
   list: (orgId: string) =>
-    apiClient.get<SourceArtifact[]>(basePath(orgId)),
+    apiClient.get<{ items: SourceArtifact[]; total: number }>(basePath(orgId)),
 
   get: (orgId: string, sourceId: string) =>
     apiClient.get<SourceArtifact & { fullText?: string }>(
