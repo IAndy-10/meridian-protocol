@@ -1,5 +1,7 @@
 # Meridian Protocol
 
+> Built at the **Company Brain Hackathon — Build an AI Agent That Knows Your Organization**, sponsored by HydraDB, hosted at Snowflake SVAI Hub.
+
 Meridian is a multi-tenant reconciliation platform that traces whether positive mental health screenings receive timely follow-up assessments within two business days. It pairs a deterministic reconciliation engine with a knowledge layer that links every decision back to source evidence — publications, procedures, and policy documents — so QI analysts can see not just what happened, but why.
 
 The entire process — from problem definition and deep research using Perplexity and Google's LLMs to frame the healthcare quality gap, through narrowing the scope, to building and iterating on the full-stack implementation — was completed within this hackathon.
