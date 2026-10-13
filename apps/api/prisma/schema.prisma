@@ -593,9 +593,10 @@ model ReconciliationRun {
   engineVersion     String   @map("engine_version")
   asOf              DateTime @map("as_of") @db.Timestamptz(6)
   extractionHash    String   @map("extraction_hash")
-  decisionsJson     Json     @map("decisions_json")
-  summaryJson       Json     @map("summary_json")
-  createdAt         DateTime @default(now()) @db.Timestamptz(6)
+  decisionsJson         Json     @map("decisions_json")
+  summaryJson           Json     @map("summary_json")
+  knowledgeSnapshotJson Json?    @map("knowledge_snapshot_json")
+  createdAt             DateTime @default(now()) @db.Timestamptz(6)
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 

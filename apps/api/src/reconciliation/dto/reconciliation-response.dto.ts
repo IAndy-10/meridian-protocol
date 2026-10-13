@@ -26,6 +26,7 @@ export interface ReconciliationRunSummaryDto {
 export interface ReconciliationRunDetailDto extends ReconciliationRunSummaryDto {
   decisions: unknown[];
   coverageManifest: unknown | null;
+  knowledgeSnapshot: unknown | null;
 }
 
 export interface ReconciliationRunListDto {

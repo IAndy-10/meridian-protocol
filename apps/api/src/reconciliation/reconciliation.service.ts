@@ -122,6 +122,33 @@ export class ReconciliationService {
 
     const result = reconcile(input);
 
+    // Capture knowledge snapshot — list of indexed source IDs at run time
+    const [sourceArtifacts, knowledgeDocs] = await Promise.all([
+      this.prisma.sourceArtifact.findMany({
+        where: { organizationId, hydraSourceId: { not: null } },
+        select: { id: true, hydraSourceId: true, title: true, kind: true },
+      }),
+      this.prisma.knowledgeDocument.findMany({
+        where: { organizationId, indexingStatus: 'completed' },
+        select: { id: true, hydraSourceId: true, title: true },
+      }),
+    ]);
+
+    const knowledgeSnapshot = {
+      capturedAt: new Date().toISOString(),
+      sources: sourceArtifacts.map((s) => ({
+        id: s.id,
+        hydraSourceId: s.hydraSourceId,
+        title: s.title,
+        kind: s.kind,
+      })),
+      documents: knowledgeDocs.map((d) => ({
+        id: d.id,
+        hydraSourceId: d.hydraSourceId,
+        title: d.title,
+      })),
+    };
+
     const run = await this.prisma.reconciliationRun.create({
       data: {
         organizationId,
@@ -131,6 +158,7 @@ export class ReconciliationService {
         extractionHash: result.extractionHash,
         decisionsJson: JSON.parse(JSON.stringify(result.decisions)),
         summaryJson: JSON.parse(JSON.stringify(result.summary)),
+        knowledgeSnapshotJson: knowledgeSnapshot,
       },
     });
 
@@ -271,6 +299,7 @@ export class ReconciliationService {
       ...this.toSummary(run),
       decisions: (run.decisionsJson as unknown[]) ?? [],
       coverageManifest: null,
+      knowledgeSnapshot: run.knowledgeSnapshotJson ?? null,
     };
   }
 }
