@@ -1,0 +1,254 @@
+/**
+ * Global styles – the design tokens in src/styles.
+ * Tokens (colors, spacing, typography, shadows, radius) come from src/styles/tokens.css.
+ * Semantic RGB vars below allow Tailwind opacity modifiers (e.g. bg-primary/10) with DS colors.
+ */
+@import '../styles/tokens.css';
+@import '../styles/rich-text.css';
+
+@layer base {
+  :root {
+    /* RGB triplets — Tech gray + blue light theme */
+    --background-rgb: 248 250 252; /* slate-50 dew */
+    --foreground-rgb: 15 23 42; /* slate-900 soil */
+    --primary-rgb: 37 99 235; /* blue-600 */
+    --primary-foreground-rgb: 255 255 255;
+    --muted-rgb: 226 232 240; /* slate-200 mist */
+    --muted-foreground-rgb: 100 116 139; /* slate-500 stem */
+    --border-rgb: 226 232 240;
+    --card-rgb: 255 255 255;
+    --accent-rgb: 219 234 254; /* blue-100 */
+    --accent-foreground-rgb: 30 64 175; /* blue-800 */
+    --sidebar-rgb: 241 245 249; /* slate-100 */
+    --sidebar-foreground-rgb: 100 116 139;
+    --sidebar-border-rgb: 226 232 240;
+    /* Destructive */
+    --destructive-rgb: 185 28 28;
+  }
+
+  .dark {
+    /* Dark tech theme */
+    --background-rgb: 15 23 42; /* slate-900 */
+    --foreground-rgb: 241 245 249; /* slate-100 */
+    --primary-rgb: 59 130 246; /* blue-500 */
+    --primary-foreground-rgb: 255 255 255;
+    --muted-rgb: 51 65 85; /* slate-700 */
+    --muted-foreground-rgb: 148 163 184; /* slate-400 */
+    --border-rgb: 51 65 85;
+    --card-rgb: 30 41 59; /* slate-800 */
+    --accent-rgb: 30 58 138; /* blue-900 */
+    --accent-foreground-rgb: 191 219 254; /* blue-200 */
+    --sidebar-rgb: 15 23 42;
+    --sidebar-foreground-rgb: 241 245 249;
+    --sidebar-border-rgb: 51 65 85;
+    /* Destructive dark */
+    --destructive-rgb: 248 113 113;
+  }
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    border-color: var(--color-mist);
+  }
+
+  html,
+  body {
+    font-family: var(--font-primary);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    background-color: var(--color-dew);
+    color: var(--color-soil);
+  }
+
+  /* Typography – DS text scale */
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: var(--letter-spacing-tight);
+  }
+
+  h1 {
+    font-size: var(--text-4xl);
+    line-height: var(--line-height-tight);
+  }
+  h2 {
+    font-size: var(--text-3xl);
+    line-height: var(--line-height-tight);
+  }
+  h3 {
+    font-size: var(--text-2xl);
+    line-height: var(--line-height-snug);
+  }
+  h4 {
+    font-size: var(--text-xl);
+    line-height: var(--line-height-snug);
+  }
+  h5 {
+    font-size: var(--text-lg);
+    line-height: var(--line-height-normal);
+  }
+  h6 {
+    font-size: var(--text-base);
+    line-height: var(--line-height-normal);
+  }
+}
+
+@layer components {
+  /* Rich text editor (TipTap) – shares the .rich-text look while editing */
+  .rich-text-editor__content {
+    color: var(--color-soil);
+    word-break: break-word;
+  }
+
+  .rich-text-editor__content h2 {
+    font-size: var(--text-2xl);
+    font-weight: var(--font-weight-semibold);
+    margin-top: 1.25rem;
+    margin-bottom: 0.75rem;
+    line-height: var(--line-height-tight);
+  }
+
+  .rich-text-editor__content h3 {
+    font-size: var(--text-xl);
+    font-weight: var(--font-weight-semibold);
+    margin-top: 1rem;
+    margin-bottom: 0.5rem;
+    line-height: var(--line-height-snug);
+  }
+
+  .rich-text-editor__content p {
+    margin-bottom: 0.75rem;
+    line-height: var(--line-height-relaxed);
+  }
+
+  .rich-text-editor__content ul {
+    list-style-type: disc;
+    list-style-position: outside;
+    margin-left: 1.5rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .rich-text-editor__content ol {
+    list-style-type: decimal;
+    list-style-position: outside;
+    margin-left: 1.5rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .rich-text-editor__content li {
+    margin-bottom: 0.25rem;
+    padding-left: 0.25rem;
+  }
+
+  .rich-text-editor__content blockquote {
+    border-left: 4px solid var(--color-mist);
+    padding-left: 1rem;
+    font-style: italic;
+    margin: 0.75rem 0;
+    color: var(--color-stem);
+  }
+
+  .rich-text-editor__content a {
+    text-decoration: underline;
+    text-underline-offset: 4px;
+  }
+
+  /* Placeholder rendered by @tiptap/extension-placeholder on the empty node */
+  .rich-text-editor__content p.is-empty:first-child::before {
+    content: attr(data-placeholder);
+    color: var(--color-stem);
+    float: left;
+    height: 0;
+    pointer-events: none;
+  }
+
+  /* Subtle gradient — slate to blue tint */
+  .bg-gradient-subtle {
+    background: linear-gradient(135deg, var(--color-dew) 0%, #dbeafe 50%, var(--color-mist) 100%);
+  }
+
+  .dark .bg-gradient-subtle {
+    background: linear-gradient(135deg, var(--color-dew) 0%, #1e3a5f 50%, var(--color-mist) 100%);
+  }
+
+  /* Transition utility – aligns with DS --transition-standard */
+  .transition-smooth {
+    transition: all var(--transition-standard);
+  }
+
+  .hover-lift {
+    transition: all var(--transition-standard);
+  }
+
+  .hover-lift:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .container-padding {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  @media (min-width: 640px) {
+    .container-padding {
+      padding-left: 1.5rem;
+      padding-right: 1.5rem;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .container-padding {
+      padding-left: 2rem;
+      padding-right: 2rem;
+    }
+  }
+
+  .section-spacing {
+    padding-top: 4rem;
+    padding-bottom: 4rem;
+  }
+
+  @media (min-width: 1024px) {
+    .section-spacing {
+      padding-top: 6rem;
+      padding-bottom: 6rem;
+    }
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* AI session tags pop-in (matches design app StandaloneSessionPage) */
+  @keyframes tagPop {
+    0% {
+      opacity: 0;
+      transform: scale(0.6);
+    }
+    60% {
+      transform: scale(1.1);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  .animate-tag-pop {
+    animation: tagPop 0.3s ease-out forwards;
+  }
+}
