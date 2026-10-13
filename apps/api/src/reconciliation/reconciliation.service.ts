@@ -166,7 +166,7 @@ export class ReconciliationService {
       `Reconciliation run ${run.id} created for org ${organizationId}: ${result.summary.totalScreens} screens, ${result.summary.eligible} eligible`,
     );
 
-    return this.toDetail(run);
+    return this.toDetailAsync(run, organizationId);
   }
 
   async listRuns(
@@ -193,7 +193,7 @@ export class ReconciliationService {
   ): Promise<ReconciliationRunDetailDto> {
     await this.requireRole(userId, organizationId, 'view');
     const run = await this.loadScoped(organizationId, runId);
-    return this.toDetail(run);
+    return this.toDetailAsync(run, organizationId);
   }
 
   async exportRun(
@@ -282,18 +282,67 @@ export class ReconciliationService {
         notEligible: summary?.notEligible ?? 0,
         indeterminate: summary?.indeterminate ?? 0,
         invalid: summary?.invalid ?? 0,
-        mature: summary?.mature ?? 0,
+        mature: summary?.matureEligible ?? summary?.mature ?? 0,
         immature: summary?.immature ?? 0,
         withinWindow: summary?.withinWindow ?? 0,
         outsideWindow: summary?.outsideWindow ?? 0,
         ambiguous: summary?.ambiguous ?? 0,
         partial: summary?.partial ?? 0,
-        absent: summary?.absent ?? 0,
+        absent: summary?.absentLink ?? summary?.absent ?? 0,
         coverageUnknown: summary?.coverageUnknown ?? 0,
       },
     };
   }
 
+  private async toDetailAsync(
+    run: ReconciliationRun,
+    organizationId: string,
+  ): Promise<ReconciliationRunDetailDto> {
+    const rawDecisions = (run.decisionsJson as any[]) ?? [];
+
+    // Enrich decisions with screen data
+    const screenIds = rawDecisions.map((d) => d.screeningEventId).filter(Boolean);
+    const screens = screenIds.length > 0
+      ? await this.prisma.screeningEvent.findMany({
+          where: { id: { in: screenIds }, organizationId },
+        })
+      : [];
+    const screenMap = new Map(screens.map((s) => [s.id, s]));
+
+    const decisions = rawDecisions.map((d) => {
+      const screen = screenMap.get(d.screeningEventId);
+      return {
+        id: d.screeningEventId,
+        screeningEventId: d.screeningEventId,
+        syntheticPatientId: screen?.syntheticPatientId ?? '',
+        encounterId: screen?.encounterId ?? '',
+        occurredAt: screen?.occurredAt?.toISOString() ?? '',
+        eligibilityState: d.eligibility ?? d.eligibilityState ?? 'INVALID',
+        linkageState: d.linkage ?? d.linkageState ?? null,
+        reasonCodes: d.eligibilityReason
+          ? [d.eligibilityReason, d.linkageReason].filter(Boolean)
+          : [],
+        linkedAssessmentId: d.linkedAssessmentId ?? null,
+        candidateAssessmentIds: d.candidateAssessmentIds ?? [],
+        ruleVersion: d.measureDefinitionId ?? '',
+        reviewStatus: 'OPEN',
+        isMature: d.isMature ?? true,
+        coverageStatus: null,
+        effectiveFrom: null,
+        effectiveTo: null,
+        sourceArtifactId: null,
+      };
+    });
+
+    return {
+      ...this.toSummary(run),
+      decisions,
+      coverageManifest: null,
+      knowledgeSnapshot: run.knowledgeSnapshotJson ?? null,
+    };
+  }
+
+  /** Sync version for export (no enrichment) */
   private toDetail(run: ReconciliationRun): ReconciliationRunDetailDto {
     return {
       ...this.toSummary(run),
