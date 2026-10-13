@@ -8,39 +8,40 @@
 
 @layer base {
   :root {
-    /* RGB triplets from DS light theme for opacity-aware utilities */
-    --background-rgb: 249 250 251; /* dew */
-    --foreground-rgb: 15 23 42; /* soil */
-    --primary-rgb: 15 23 42; /* soil */
-    --primary-foreground-rgb: 249 250 251;
-    --muted-rgb: 229 231 235; /* mist */
-    --muted-foreground-rgb: 75 85 99; /* stem */
-    --border-rgb: 229 231 235;
-    --card-rgb: 249 250 251;
-    --accent-rgb: 229 231 235;
-    --accent-foreground-rgb: 15 23 42;
-    --sidebar-rgb: 249 250 251;
-    --sidebar-foreground-rgb: 75 85 99;
-    --sidebar-border-rgb: 229 231 235;
-    /* Destructive (from tokens.css --color-destructive) */
+    /* RGB triplets — Tech gray + blue light theme */
+    --background-rgb: 248 250 252; /* slate-50 dew */
+    --foreground-rgb: 15 23 42; /* slate-900 soil */
+    --primary-rgb: 37 99 235; /* blue-600 */
+    --primary-foreground-rgb: 255 255 255;
+    --muted-rgb: 226 232 240; /* slate-200 mist */
+    --muted-foreground-rgb: 100 116 139; /* slate-500 stem */
+    --border-rgb: 226 232 240;
+    --card-rgb: 255 255 255;
+    --accent-rgb: 219 234 254; /* blue-100 */
+    --accent-foreground-rgb: 30 64 175; /* blue-800 */
+    --sidebar-rgb: 241 245 249; /* slate-100 */
+    --sidebar-foreground-rgb: 100 116 139;
+    --sidebar-border-rgb: 226 232 240;
+    /* Destructive */
     --destructive-rgb: 185 28 28;
   }
 
   .dark {
-    --background-rgb: 31 41 55; /* dew (dark) */
-    --foreground-rgb: 243 244 246; /* soil (dark) */
-    --primary-rgb: 243 244 246;
-    --primary-foreground-rgb: 15 23 42;
-    --muted-rgb: 55 65 81; /* mist (dark) */
-    --muted-foreground-rgb: 156 163 175;
-    --border-rgb: 55 65 81;
-    --card-rgb: 31 41 55;
-    --accent-rgb: 55 65 81;
-    --accent-foreground-rgb: 243 244 246;
+    /* Dark tech theme */
+    --background-rgb: 15 23 42; /* slate-900 */
+    --foreground-rgb: 241 245 249; /* slate-100 */
+    --primary-rgb: 59 130 246; /* blue-500 */
+    --primary-foreground-rgb: 255 255 255;
+    --muted-rgb: 51 65 85; /* slate-700 */
+    --muted-foreground-rgb: 148 163 184; /* slate-400 */
+    --border-rgb: 51 65 85;
+    --card-rgb: 30 41 59; /* slate-800 */
+    --accent-rgb: 30 58 138; /* blue-900 */
+    --accent-foreground-rgb: 191 219 254; /* blue-200 */
     --sidebar-rgb: 15 23 42;
-    --sidebar-foreground-rgb: 243 244 246;
-    --sidebar-border-rgb: 55 65 81;
-    /* Destructive dark (from tokens.css .dark --color-destructive) */
+    --sidebar-foreground-rgb: 241 245 249;
+    --sidebar-border-rgb: 51 65 85;
+    /* Destructive dark */
     --destructive-rgb: 248 113 113;
   }
 }
@@ -172,13 +173,13 @@
     pointer-events: none;
   }
 
-  /* Subtle gradient using DS colors (replaces brand gradients) */
+  /* Subtle gradient — slate to blue tint */
   .bg-gradient-subtle {
-    background: linear-gradient(135deg, var(--color-dew) 0%, var(--color-mist) 100%);
+    background: linear-gradient(135deg, var(--color-dew) 0%, #dbeafe 50%, var(--color-mist) 100%);
   }
 
   .dark .bg-gradient-subtle {
-    background: linear-gradient(135deg, var(--color-dew) 0%, var(--color-mist) 100%);
+    background: linear-gradient(135deg, var(--color-dew) 0%, #1e3a5f 50%, var(--color-mist) 100%);
   }
 
   /* Transition utility – aligns with DS --transition-standard */

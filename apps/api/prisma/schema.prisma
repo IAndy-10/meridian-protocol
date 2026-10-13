@@ -58,6 +58,7 @@ model User {
   notificationPreferences NotificationPreference[]
   inAppNotifications      InAppNotification[]
   createdProjects         Project[]                @relation("ProjectCreator")
+  createdKnowledgeDocs    KnowledgeDocument[]      @relation("KnowledgeDocCreator")
 
   adminImpersonationAudits AdminImpersonationAudit[] @relation("AdminImpersonationTargetUser")
   quarantinedAudits        AdminQuarantineAudit[]    @relation("QuarantinedUser")
@@ -153,6 +154,12 @@ model Organization {
   notifications           Notification[]
   notificationPreferences NotificationPreference[]
   projects                Project[]
+  knowledgeDocuments      KnowledgeDocument[]
+  sourceArtifacts         SourceArtifact[]
+  protocolVersions        ProtocolVersion[]
+  screeningEvents         ScreeningEvent[]
+  assessmentEvents        AssessmentEvent[]
+  reconciliationRuns      ReconciliationRun[]
 
   @@map("organizations")
 }
@@ -418,4 +425,196 @@ model Project {
   @@index([organizationId, archivedAt])
   @@index([createdById])
   @@map("projects")
+}
+
+// ============================================================================
+// Knowledge — HydraDB-backed document ingestion and retrieval
+// ============================================================================
+
+model KnowledgeDocument {
+  id              String @id @default(uuid())
+  organizationId  String @map("organization_id")
+  createdById     String @map("created_by_id")
+  title           String
+  hydraSourceId   String @map("hydra_source_id")
+  indexingStatus  String @default("pending") @map("indexing_status")
+
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy    User         @relation("KnowledgeDocCreator", fields: [createdById], references: [id])
+
+  @@index([organizationId])
+  @@index([createdById])
+  @@map("knowledge_documents")
+}
+
+// ============================================================================
+// AegisBrain — Screening-to-assessment reconciliation domain
+// ============================================================================
+
+model SourceArtifact {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  kind           String   // PUBLICATION, SYNTHETIC_PROCEDURE, LOCAL_APPROVED_POLICY
+  title          String
+  url            String?
+  storedText     String?  @map("stored_text") @db.Text
+  sectionLocator String?  @map("section_locator")
+  excerpt        String?  @db.Text
+  contentHash    String   @map("content_hash")
+  hydraSourceId  String?  @map("hydra_source_id")
+  createdAt      DateTime @default(now()) @db.Timestamptz(6)
+
+  organization     Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  protocolVersions ProtocolVersion[]
+
+  @@index([organizationId])
+  @@map("source_artifacts")
+}
+
+model ProtocolVersion {
+  id                      String    @id @default(uuid())
+  organizationId          String    @map("organization_id")
+  version                 String
+  approvalStatus          String    @map("approval_status")
+  isSynthetic             Boolean   @default(true) @map("is_synthetic")
+  approverLabel           String?   @map("approver_label")
+  effectiveFrom           DateTime  @map("effective_from") @db.Timestamptz(6)
+  effectiveTo             DateTime? @map("effective_to") @db.Timestamptz(6)
+  sourceArtifactId        String    @map("source_artifact_id")
+  timezone                String    @default("America/Los_Angeles")
+  calendarVersion         String    @map("calendar_version")
+  responsibleClinicalRole String    @map("responsible_clinical_role")
+  operationalReviewRole   String    @map("operational_review_role")
+  createdAt               DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt               DateTime  @updatedAt @db.Timestamptz(6)
+
+  organization       Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  sourceArtifact     SourceArtifact    @relation(fields: [sourceArtifactId], references: [id])
+  measureDefinitions MeasureDefinition[]
+
+  @@index([organizationId])
+  @@map("protocol_versions")
+}
+
+model MeasureDefinition {
+  id                    String   @id @default(uuid())
+  version               String
+  protocolVersionId     String   @map("protocol_version_id")
+  populationMinAge      Int?     @map("population_min_age")
+  settingFilter         String   @map("setting_filter")
+  eligibilityRule       String   @map("eligibility_rule") @db.Text
+  qualifyingAssessment  String   @map("qualifying_assessment") @db.Text
+  linkageRules          String   @map("linkage_rules") @db.Text
+  reportingIntervalDays Int      @map("reporting_interval_days")
+  timeAnchor            String   @map("time_anchor")
+  boundaryInclusivity   String   @map("boundary_inclusivity")
+  duplicatePolicy       String   @map("duplicate_policy") @db.Text
+  exclusionPolicy       String   @map("exclusion_policy") @db.Text
+  createdAt             DateTime @default(now()) @db.Timestamptz(6)
+
+  protocolVersion ProtocolVersion @relation(fields: [protocolVersionId], references: [id])
+
+  @@map("measure_definitions")
+}
+
+model ScreeningEvent {
+  id                     String   @id @default(uuid())
+  organizationId         String   @map("organization_id")
+  syntheticPatientId     String   @map("synthetic_patient_id")
+  encounterId            String   @map("encounter_id")
+  occurredAt             DateTime @map("occurred_at") @db.Timestamptz(6)
+  recordedAt             DateTime @map("recorded_at") @db.Timestamptz(6)
+  ageAtEvent             Int      @map("age_at_event")
+  setting                String
+  instrumentName         String   @map("instrument_name")
+  instrumentVersion      String   @map("instrument_version")
+  item9Value             Int?     @map("item_9_value")
+  assessmentRequired     Boolean? @map("assessment_required")
+  eligibilityRuleVersion String   @map("eligibility_rule_version")
+  sourceRecordId         String   @map("source_record_id")
+  sourceSystem           String   @map("source_system")
+  sourceLocation         String?  @map("source_location")
+  provenanceHash         String   @map("provenance_hash")
+  createdAt              DateTime @default(now()) @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceRecordId, sourceSystem])
+  @@index([organizationId, syntheticPatientId])
+  @@map("screening_events")
+}
+
+model AssessmentEvent {
+  id                       String   @id @default(uuid())
+  organizationId           String   @map("organization_id")
+  syntheticPatientId       String   @map("synthetic_patient_id")
+  encounterId              String   @map("encounter_id")
+  triggeringScreenId       String?  @map("triggering_screen_id")
+  performedAt              DateTime @map("performed_at") @db.Timestamptz(6)
+  recordedAt               DateTime @map("recorded_at") @db.Timestamptz(6)
+  instrumentName           String   @map("instrument_name")
+  instrumentVersion        String   @map("instrument_version")
+  documentationStatus      String   @map("documentation_status")
+  documentedCompletionFlag Boolean? @map("documented_completion_flag")
+  sourceRecordId           String   @map("source_record_id")
+  sourceSystem             String   @map("source_system")
+  sourceLocation           String?  @map("source_location")
+  provenanceHash           String   @map("provenance_hash")
+  createdAt                DateTime @default(now()) @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceRecordId, sourceSystem])
+  @@index([organizationId, syntheticPatientId])
+  @@map("assessment_events")
+}
+
+model CoverageManifest {
+  id                String   @id @default(uuid())
+  runId             String   @map("run_id")
+  locationsIncluded String[] @map("locations_included")
+  locationsOmitted  String[] @map("locations_omitted")
+  extractionCutoff  DateTime @map("extraction_cutoff") @db.Timestamptz(6)
+  dataWatermark     DateTime @map("data_watermark") @db.Timestamptz(6)
+  knownMissingFeeds String[] @map("known_missing_feeds")
+  coverageStatus    String   @map("coverage_status")
+  createdAt         DateTime @default(now()) @db.Timestamptz(6)
+
+  @@map("coverage_manifests")
+}
+
+model ReconciliationRun {
+  id                String   @id @default(uuid())
+  organizationId    String   @map("organization_id")
+  configurationHash String   @map("configuration_hash")
+  engineVersion     String   @map("engine_version")
+  asOf              DateTime @map("as_of") @db.Timestamptz(6)
+  extractionHash    String   @map("extraction_hash")
+  decisionsJson     Json     @map("decisions_json")
+  summaryJson       Json     @map("summary_json")
+  createdAt         DateTime @default(now()) @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@map("reconciliation_runs")
+}
+
+model ReviewAction {
+  id               String   @id @default(uuid())
+  runId            String   @map("run_id")
+  screeningEventId String   @map("screening_event_id")
+  actor            String
+  timestamp        DateTime @db.Timestamptz(6)
+  reason           String   @db.Text
+  evidenceReference String? @map("evidence_reference") @db.Text
+  status           String   // OPEN, IN_REVIEW, CLOSED_WITH_REASON, REOPENED
+  previousActionId String?  @map("previous_action_id")
+  createdAt        DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([runId, screeningEventId])
+  @@map("review_actions")
 }

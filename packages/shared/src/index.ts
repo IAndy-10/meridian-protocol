@@ -11,5 +11,8 @@ export * from './enums/org-role.enum';
 // Types
 export * from './types';
 
+// Fixtures
+export * from './fixtures';
+
 // Utilities
 export * from './utils/html-utils';

@@ -5,31 +5,31 @@
  */
 
 :root {
-  /* Primary Colors - Neutral Theme */
-  --color-forest: #111827;
-  --color-growth: #1f2937;
-  --color-leaf: #6b7280;
-  --color-spring: #f3f4f6;
+  /* Primary Colors - Tech Gray + Blue */
+  --color-forest: #0f172a;
+  --color-growth: #1e293b;
+  --color-leaf: #64748b;
+  --color-spring: #f1f5f9;
 
   /* Neutral Colors */
   --color-soil: #0f172a;
-  --color-stem: #4b5563;
-  --color-mist: #e5e7eb;
-  --color-dew: #f9fafb;
+  --color-stem: #64748b;
+  --color-mist: #e2e8f0;
+  --color-dew: #f8fafc;
 
-  /* Accent Colors */
-  --color-bloom: #111827;
-  --color-rain: #374151;
-  --color-autumn: #111827;
+  /* Accent Colors — Blue tech */
+  --color-bloom: #2563eb;
+  --color-rain: #3b82f6;
+  --color-autumn: #1d4ed8;
 
   /* Semantic: text/UI on dark backgrounds (inverse contexts) */
-  --color-on-dark: #f9fafb;
+  --color-on-dark: #f1f5f9;
 
-  /* Primary button: always dark bg + light text */
-  --color-primary-bg: var(--color-soil);
-  --color-primary-text: var(--color-on-dark);
+  /* Primary button: blue bg + white text */
+  --color-primary-bg: #2563eb;
+  --color-primary-text: #ffffff;
 
-  /* Inverse button (e.g. on dark strips): always light bg + dark text */
+  /* Inverse button (e.g. on dark strips): light bg + dark text */
   --color-inverse-bg: var(--color-dew);
   --color-inverse-text: var(--color-soil);
 
@@ -90,31 +90,31 @@
 
 /* Dark mode – same token names, different values. Apply .dark on a parent (e.g. html). */
 .dark {
-  /* Primary (neutral theme) */
-  --color-forest: #f9fafb;
-  --color-growth: #e5e7eb;
-  --color-leaf: #9ca3af;
-  --color-spring: #111827;
+  /* Primary (dark tech) */
+  --color-forest: #f1f5f9;
+  --color-growth: #e2e8f0;
+  --color-leaf: #94a3b8;
+  --color-spring: #0f172a;
 
   /* Neutral */
-  --color-soil: #f3f4f6;
-  --color-stem: #9ca3af;
-  --color-mist: #374151;
-  --color-dew: #1f2937;
+  --color-soil: #f1f5f9;
+  --color-stem: #94a3b8;
+  --color-mist: #334155;
+  --color-dew: #0f172a;
 
-  /* Accent */
-  --color-bloom: #f9fafb;
-  --color-rain: #d1d5db;
-  --color-autumn: #f9fafb;
+  /* Accent — Blue tech */
+  --color-bloom: #60a5fa;
+  --color-rain: #93c5fd;
+  --color-autumn: #3b82f6;
 
   /* Semantic: text/UI on dark backgrounds */
-  --color-on-dark: #f3f4f6;
+  --color-on-dark: #f1f5f9;
 
-  /* Primary button: always dark bg + light text */
-  --color-primary-bg: var(--color-dew);
-  --color-primary-text: var(--color-on-dark);
+  /* Primary button: blue bg + white text */
+  --color-primary-bg: #3b82f6;
+  --color-primary-text: #ffffff;
 
-  /* Inverse button: always light bg + dark text */
+  /* Inverse button */
   --color-inverse-bg: var(--color-soil);
   --color-inverse-text: var(--color-dew);
 

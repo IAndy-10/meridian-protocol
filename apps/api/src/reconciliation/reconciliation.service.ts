@@ -1,0 +1,262 @@
+import { Injectable, Logger } from '@nestjs/common';
+import { OrgRole, ReconciliationRun } from '@prisma/client';
+import { PrismaService } from '../prisma/prisma.service';
+import { OrganizationsService } from '../organizations/organizations.service';
+import { reconcile } from './engine';
+import type { ReconciliationInput, BusinessDayCalendar } from './engine';
+import {
+  ReconciliationRunSummaryDto,
+  ReconciliationRunDetailDto,
+  ReconciliationRunListDto,
+} from './dto/reconciliation-response.dto';
+import {
+  ReconciliationRunNotFoundException,
+  ReconciliationAccessDeniedException,
+} from './exceptions/reconciliation.exceptions';
+
+@Injectable()
+export class ReconciliationService {
+  private static readonly ALLOWED_ROLES: OrgRole[] = [
+    OrgRole.OWNER,
+    OrgRole.ADMIN,
+    OrgRole.MEMBER,
+  ];
+
+  private static readonly ENGINE_VERSION = '1.0.0';
+
+  private static readonly DEFAULT_CALENDAR: BusinessDayCalendar = {
+    timezone: 'America/Los_Angeles',
+    holidays: ['2026-09-07', '2026-11-26'],
+    weekendDays: [0, 6],
+  };
+
+  private readonly logger = new Logger(ReconciliationService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly organizationsService: OrganizationsService,
+  ) {}
+
+  async triggerRun(
+    userId: string,
+    organizationId: string,
+    protocolVersionId?: string,
+    coverageManifestId?: string,
+  ): Promise<ReconciliationRunDetailDto> {
+    await this.requireRole(userId, organizationId, 'trigger');
+
+    const asOf = new Date();
+
+    // Load screens and assessments scoped to org
+    const [screens, assessments, protocolVersions, coverageManifest] = await Promise.all([
+      this.prisma.screeningEvent.findMany({ where: { organizationId } }),
+      this.prisma.assessmentEvent.findMany({ where: { organizationId } }),
+      this.prisma.protocolVersion.findMany({
+        where: protocolVersionId
+          ? { id: protocolVersionId, organizationId }
+          : { organizationId },
+        include: { measureDefinitions: true },
+      }),
+      coverageManifestId
+        ? this.prisma.coverageManifest.findFirst({ where: { id: coverageManifestId } })
+        : this.prisma.coverageManifest.findFirst({ orderBy: { createdAt: 'desc' } }),
+    ]);
+
+    const coverage = coverageManifest
+      ? {
+          locationsIncluded: coverageManifest.locationsIncluded,
+          locationsOmitted: coverageManifest.locationsOmitted,
+          extractionCutoff: coverageManifest.extractionCutoff,
+          dataWatermark: coverageManifest.dataWatermark,
+          knownMissingFeeds: coverageManifest.knownMissingFeeds,
+          coverageStatus: coverageManifest.coverageStatus,
+        }
+      : {
+          locationsIncluded: [],
+          locationsOmitted: [],
+          extractionCutoff: asOf,
+          dataWatermark: asOf,
+          knownMissingFeeds: [],
+          coverageStatus: 'COMPLETE',
+        };
+
+    const input: ReconciliationInput = {
+      organizationId,
+      screens: screens.map((s) => ({
+        ...s,
+        provenanceHash: s.provenanceHash,
+      })),
+      assessments: assessments.map((a) => ({
+        ...a,
+        provenanceHash: a.provenanceHash,
+      })),
+      protocolVersions: protocolVersions.map((pv) => ({
+        id: pv.id,
+        organizationId: pv.organizationId,
+        version: pv.version,
+        effectiveFrom: pv.effectiveFrom,
+        effectiveTo: pv.effectiveTo,
+        timezone: pv.timezone,
+        calendarVersion: pv.calendarVersion,
+        measureDefinitions: pv.measureDefinitions.map((md) => ({
+          id: md.id,
+          version: md.version,
+          protocolVersionId: md.protocolVersionId,
+          populationMinAge: md.populationMinAge,
+          settingFilter: md.settingFilter,
+          eligibilityRule: md.eligibilityRule,
+          qualifyingAssessment: md.qualifyingAssessment,
+          linkageRules: md.linkageRules,
+          reportingIntervalDays: md.reportingIntervalDays,
+          timeAnchor: md.timeAnchor,
+          boundaryInclusivity: md.boundaryInclusivity,
+          duplicatePolicy: md.duplicatePolicy,
+          exclusionPolicy: md.exclusionPolicy,
+        })),
+      })),
+      coverage,
+      calendar: ReconciliationService.DEFAULT_CALENDAR,
+      asOf,
+      engineVersion: ReconciliationService.ENGINE_VERSION,
+    };
+
+    const result = reconcile(input);
+
+    const run = await this.prisma.reconciliationRun.create({
+      data: {
+        organizationId,
+        configurationHash: result.configurationHash,
+        engineVersion: result.engineVersion,
+        asOf: result.asOf,
+        extractionHash: result.extractionHash,
+        decisionsJson: JSON.parse(JSON.stringify(result.decisions)),
+        summaryJson: JSON.parse(JSON.stringify(result.summary)),
+      },
+    });
+
+    this.logger.log(
+      `Reconciliation run ${run.id} created for org ${organizationId}: ${result.summary.totalScreens} screens, ${result.summary.eligible} eligible`,
+    );
+
+    return this.toDetail(run);
+  }
+
+  async listRuns(
+    userId: string,
+    organizationId: string,
+  ): Promise<ReconciliationRunListDto> {
+    await this.requireRole(userId, organizationId, 'list');
+
+    const runs = await this.prisma.reconciliationRun.findMany({
+      where: { organizationId },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return {
+      items: runs.map((r) => this.toSummary(r)),
+      total: runs.length,
+    };
+  }
+
+  async getRun(
+    userId: string,
+    organizationId: string,
+    runId: string,
+  ): Promise<ReconciliationRunDetailDto> {
+    await this.requireRole(userId, organizationId, 'view');
+    const run = await this.loadScoped(organizationId, runId);
+    return this.toDetail(run);
+  }
+
+  async exportRun(
+    userId: string,
+    organizationId: string,
+    runId: string,
+    format: 'json' | 'csv' = 'json',
+  ): Promise<{ contentType: string; data: string }> {
+    await this.requireRole(userId, organizationId, 'export');
+    const run = await this.loadScoped(organizationId, runId);
+
+    if (format === 'csv') {
+      return {
+        contentType: 'text/csv',
+        data: this.toCsv(run),
+      };
+    }
+
+    return {
+      contentType: 'application/json',
+      data: JSON.stringify(this.toDetail(run), null, 2),
+    };
+  }
+
+  private toCsv(run: ReconciliationRun): string {
+    const decisions = run.decisionsJson as Array<Record<string, unknown>>;
+    if (!Array.isArray(decisions) || decisions.length === 0) {
+      return '';
+    }
+
+    const headers = Object.keys(decisions[0]);
+    const rows = decisions.map((d) =>
+      headers.map((h) => {
+        const val = d[h];
+        const str = val === null || val === undefined ? '' : String(val);
+        return str.includes(',') || str.includes('"') || str.includes('\n')
+          ? `"${str.replace(/"/g, '""')}"`
+          : str;
+      }).join(','),
+    );
+
+    return [headers.join(','), ...rows].join('\n');
+  }
+
+  private async loadScoped(
+    organizationId: string,
+    runId: string,
+  ): Promise<ReconciliationRun> {
+    const run = await this.prisma.reconciliationRun.findFirst({
+      where: { id: runId, organizationId },
+    });
+
+    if (!run) {
+      throw new ReconciliationRunNotFoundException(runId);
+    }
+
+    return run;
+  }
+
+  private async requireRole(
+    userId: string,
+    organizationId: string,
+    action: string,
+  ): Promise<void> {
+    const role = await this.organizationsService.getUserRoleInOrganization(
+      userId,
+      organizationId,
+    );
+
+    if (!role || !ReconciliationService.ALLOWED_ROLES.includes(role)) {
+      throw new ReconciliationAccessDeniedException(action);
+    }
+  }
+
+  private toSummary(run: ReconciliationRun): ReconciliationRunSummaryDto {
+    return {
+      id: run.id,
+      organizationId: run.organizationId,
+      configurationHash: run.configurationHash,
+      engineVersion: run.engineVersion,
+      asOf: run.asOf.toISOString(),
+      extractionHash: run.extractionHash,
+      summaryJson: run.summaryJson,
+      createdAt: run.createdAt.toISOString(),
+    };
+  }
+
+  private toDetail(run: ReconciliationRun): ReconciliationRunDetailDto {
+    return {
+      ...this.toSummary(run),
+      decisionsJson: run.decisionsJson,
+    };
+  }
+}

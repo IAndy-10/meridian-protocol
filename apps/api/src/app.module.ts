@@ -18,6 +18,9 @@ import { ShortLinksModule } from './features/short-links/short-links.module';
 import { AdminImpersonationModule } from './admin-impersonation/admin-impersonation.module';
 import { AdminDashboardModule } from './admin-dashboard/admin-dashboard.module';
 import { ProjectsModule } from './projects/projects.module';
+import { KnowledgeModule } from './knowledge/knowledge.module';
+import { ReconciliationModule } from './reconciliation/reconciliation.module';
+import { SourcesModule } from './sources/sources.module';
 
 @Module({
   imports: [
@@ -52,6 +55,9 @@ import { ProjectsModule } from './projects/projects.module';
     AdminImpersonationModule,
     AdminDashboardModule,
     ProjectsModule,
+    KnowledgeModule,
+    ReconciliationModule,
+    SourcesModule,
   ],
   controllers: [AppController],
   providers: [
