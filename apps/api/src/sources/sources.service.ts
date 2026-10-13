@@ -123,6 +123,56 @@ export class SourcesService {
     }
   }
 
+  async provenanceSearch(
+    userId: string,
+    organizationId: string,
+    reasonCodes: string[],
+    reasonText?: string,
+  ): Promise<Array<{ text: string; sourceId: string; score: number; title: string }>> {
+    await this.requireRole(userId, organizationId, 'search');
+
+    if (!this.hydraDb.isConfigured || reasonCodes.length === 0) {
+      return [];
+    }
+
+    const queryText = reasonText
+      ? `${reasonText} ${reasonCodes.join(' ')}`
+      : reasonCodes.join(' ');
+
+    const dbName = this.databaseName(organizationId);
+
+    try {
+      const result = await this.hydraDb.query(
+        dbName,
+        SourcesService.HYDRA_COLLECTION,
+        queryText,
+        { graphContext: false, maxResults: 3 },
+      );
+
+      const chunks = result.data.chunks ?? [];
+
+      // Resolve source artifact titles
+      const sourceIds = [...new Set(chunks.map((c) => c.source_id))];
+      const artifacts = sourceIds.length > 0
+        ? await this.prisma.sourceArtifact.findMany({
+            where: { organizationId, hydraSourceId: { in: sourceIds } },
+            select: { hydraSourceId: true, title: true },
+          })
+        : [];
+      const titleMap = new Map(artifacts.map((a) => [a.hydraSourceId, a.title]));
+
+      return chunks.map((c) => ({
+        text: c.text,
+        sourceId: c.source_id,
+        score: c.score,
+        title: titleMap.get(c.source_id) ?? 'Unknown source',
+      }));
+    } catch (error) {
+      this.logger.error(`Provenance search failed for org ${organizationId}: ${error}`);
+      return [];
+    }
+  }
+
   private databaseName(organizationId: string): string {
     return `org_${organizationId.replace(/-/g, '_')}`;
   }

@@ -23,7 +23,7 @@ import {
   type ReviewAction,
 } from '@/lib/api/reconciliation';
 import { downloadAuthedFile } from '@/lib/download';
-import { sourcesApi } from '@/lib/api/sources';
+import { sourcesApi, type ProvenancePassage } from '@/lib/api/sources';
 import { cn } from '@/lib/utils';
 
 interface PageProps {
@@ -180,6 +180,12 @@ const DetailPanel = ({
     enabled: !!decision.sourceArtifactId,
   });
 
+  const { data: provenancePassages } = useQuery({
+    queryKey: ['provenance', orgId, decision.id],
+    queryFn: () => sourcesApi.provenance(orgId, decision.reasonCodes),
+    enabled: decision.reasonCodes.length > 0,
+  });
+
   return (
     <div className="space-y-4 border-t bg-muted/30 p-4">
       <div className="rounded border bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900">
@@ -219,6 +225,27 @@ const DetailPanel = ({
           <blockquote className="mt-1 border-l-2 border-blue-300 pl-3 text-xs italic text-muted-foreground">
             {sourceArtifact.excerpt}
           </blockquote>
+        </div>
+      )}
+
+      {provenancePassages && provenancePassages.length > 0 && (
+        <div className="text-sm">
+          <span className="font-medium">Grounded in:</span>
+          <div className="mt-1 space-y-2">
+            {provenancePassages.map((p: ProvenancePassage, idx: number) => (
+              <div key={idx} className="rounded border bg-blue-50/50 p-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-medium text-blue-800">{p.title}</span>
+                  <span className="text-muted-foreground">
+                    relevance: {(p.score * 100).toFixed(0)}%
+                  </span>
+                </div>
+                <blockquote className="mt-1 border-l-2 border-blue-300 pl-2 text-xs italic text-muted-foreground line-clamp-3">
+                  {p.text}
+                </blockquote>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

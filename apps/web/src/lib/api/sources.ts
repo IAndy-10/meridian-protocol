@@ -26,6 +26,13 @@ export interface SourceSearchRequest {
   limit?: number;
 }
 
+export interface ProvenancePassage {
+  text: string;
+  sourceId: string;
+  score: number;
+  title: string;
+}
+
 const basePath = (orgId: string) => `/api/organizations/${orgId}/sources`;
 
 export const sourcesApi = {
@@ -39,4 +46,10 @@ export const sourcesApi = {
 
   search: (orgId: string, data: SourceSearchRequest) =>
     apiClient.post<SourceSearchResult[]>(`${basePath(orgId)}/search`, data),
+
+  provenance: (orgId: string, reasonCodes: string[], reasonText?: string) =>
+    apiClient.post<ProvenancePassage[]>(`${basePath(orgId)}/provenance`, {
+      reasonCodes,
+      reasonText,
+    }),
 };

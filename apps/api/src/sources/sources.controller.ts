@@ -14,7 +14,7 @@ import { TokenPayload } from '@app-starter/shared';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { EmailVerifiedGuard } from '../auth/email-verified.guard';
 import { SourcesService } from './sources.service';
-import { SearchSourcesDto } from './dto/search-sources.dto';
+import { SearchSourcesDto, ProvenanceSearchDto } from './dto/search-sources.dto';
 import {
   SourceArtifactDetailDto,
   SourceArtifactListDto,
@@ -60,6 +60,22 @@ export class SourcesController {
       organizationId,
       data.query,
       data.maxResults,
+    );
+  }
+
+  @Post('provenance')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Find source passages that ground a reconciliation decision' })
+  async provenance(
+    @Request() req: { user: TokenPayload },
+    @Param('organizationId') organizationId: string,
+    @Body() data: ProvenanceSearchDto,
+  ): Promise<Array<{ text: string; sourceId: string; score: number; title: string }>> {
+    return this.sourcesService.provenanceSearch(
+      req.user.sub,
+      organizationId,
+      data.reasonCodes,
+      data.reasonText,
     );
   }
 }
