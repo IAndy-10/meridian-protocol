@@ -180,10 +180,21 @@ const DetailPanel = ({
     enabled: !!decision.sourceArtifactId,
   });
 
+  const provenanceQueryText = [
+    decision.eligibilityState,
+    decision.linkageState,
+    ...decision.reasonCodes,
+  ].filter(Boolean).join(' ');
+
   const { data: provenancePassages } = useQuery({
     queryKey: ['provenance', orgId, decision.id],
-    queryFn: () => sourcesApi.provenance(orgId, decision.reasonCodes),
-    enabled: decision.reasonCodes.length > 0,
+    queryFn: () =>
+      sourcesApi.provenance(
+        orgId,
+        decision.reasonCodes,
+        provenanceQueryText,
+      ),
+    enabled: decision.reasonCodes.length > 0 || !!decision.linkageState,
   });
 
   return (
