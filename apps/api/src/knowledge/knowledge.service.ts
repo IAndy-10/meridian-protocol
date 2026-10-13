@@ -180,6 +180,69 @@ export class KnowledgeService {
     };
   }
 
+  async unifiedSearch(
+    userId: string,
+    organizationId: string,
+    queryText: string,
+    maxResults?: number,
+  ): Promise<{
+    results: Array<{
+      text: string;
+      sourceId: string;
+      score: number;
+      collection: string;
+    }>;
+  }> {
+    this.requireConfigured();
+    await this.requireRole(userId, organizationId, KnowledgeService.WRITE_ROLES, 'query');
+
+    const database = this.databaseName(organizationId);
+    const limit = maxResults ?? 10;
+
+    const [knowledgeResult, sourcesResult] = await Promise.allSettled([
+      this.hydraDb.query(database, 'knowledge', queryText, {
+        graphContext: false,
+        maxResults: limit,
+      }),
+      this.hydraDb.query(database, 'source_artifacts', queryText, {
+        graphContext: false,
+        maxResults: limit,
+      }),
+    ]);
+
+    const results: Array<{
+      text: string;
+      sourceId: string;
+      score: number;
+      collection: string;
+    }> = [];
+
+    if (knowledgeResult.status === 'fulfilled') {
+      for (const chunk of knowledgeResult.value.data.chunks ?? []) {
+        results.push({
+          text: chunk.text,
+          sourceId: chunk.source_id,
+          score: chunk.score,
+          collection: 'knowledge',
+        });
+      }
+    }
+
+    if (sourcesResult.status === 'fulfilled') {
+      for (const chunk of sourcesResult.value.data.chunks ?? []) {
+        results.push({
+          text: chunk.text,
+          sourceId: chunk.source_id,
+          score: chunk.score,
+          collection: 'source_artifacts',
+        });
+      }
+    }
+
+    results.sort((a, b) => b.score - a.score);
+    return { results: results.slice(0, limit) };
+  }
+
   async remove(
     userId: string,
     organizationId: string,

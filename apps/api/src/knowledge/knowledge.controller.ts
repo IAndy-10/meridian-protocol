@@ -73,6 +73,29 @@ export class KnowledgeController {
     return this.knowledgeService.refreshStatus(req.user.sub, organizationId, documentId);
   }
 
+  @Post('unified-search')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Search across all collections (knowledge + source_artifacts)' })
+  async unifiedSearch(
+    @Request() req: { user: TokenPayload },
+    @Param('organizationId') organizationId: string,
+    @Body() data: QueryKnowledgeDto,
+  ): Promise<{
+    results: Array<{
+      text: string;
+      sourceId: string;
+      score: number;
+      collection: string;
+    }>;
+  }> {
+    return this.knowledgeService.unifiedSearch(
+      req.user.sub,
+      organizationId,
+      data.query,
+      data.maxResults,
+    );
+  }
+
   @Post('query')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Query the knowledge base' })

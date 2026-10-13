@@ -26,6 +26,13 @@ export interface SourceSearchRequest {
   limit?: number;
 }
 
+export interface UnifiedSearchResult {
+  text: string;
+  sourceId: string;
+  score: number;
+  collection: string;
+}
+
 export interface ProvenancePassage {
   text: string;
   sourceId: string;
@@ -52,4 +59,10 @@ export const sourcesApi = {
       reasonCodes,
       reasonText,
     }),
+
+  unifiedSearch: (orgId: string, query: string, maxResults?: number) =>
+    apiClient.post<{ results: UnifiedSearchResult[] }>(
+      `/api/organizations/${orgId}/knowledge/unified-search`,
+      { query, maxResults },
+    ),
 };
