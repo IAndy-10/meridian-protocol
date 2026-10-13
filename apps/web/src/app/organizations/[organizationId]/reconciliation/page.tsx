@@ -2,7 +2,7 @@
 
 import React, { use, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Play, FileJson, FileSpreadsheet, Search, ChevronDown, ChevronRight, AlertCircle } from 'lucide-react';
+import { Loader2, Play, FileJson, FileSpreadsheet, Search, ChevronDown, ChevronRight, AlertCircle, LayoutList, BarChart3, HelpCircle, ArrowRight, Clock, Calendar } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -471,12 +471,382 @@ const EventList = ({
   );
 };
 
+// --- Donut Chart (SVG) ---
+
+const DONUT_SEGMENTS: Array<{ key: string; label: string; color: string }> = [
+  { key: 'withinWindow', label: 'Within window', color: '#3b82f6' },
+  { key: 'outsideWindow', label: 'Outside window', color: '#f59e0b' },
+  { key: 'ambiguous', label: 'Ambiguous', color: '#9ca3af' },
+  { key: 'absent', label: 'No linked record', color: '#d1d5db' },
+  { key: 'partial', label: 'Partial', color: '#c4b5fd' },
+  { key: 'coverageUnknown', label: 'Coverage unknown', color: '#e5e7eb' },
+];
+
+const DonutChart = ({ counts }: { counts: ReconciliationRun['counts'] }) => {
+  const total = counts.mature || 1;
+  const radius = 40;
+  const circumference = 2 * Math.PI * radius;
+  let offset = 0;
+
+  const segments = DONUT_SEGMENTS
+    .map((seg) => {
+      const value = counts[seg.key as keyof typeof counts] as number;
+      const pct = value / total;
+      const dashLength = pct * circumference;
+      const segment = { ...seg, value, pct, dashLength, offset };
+      offset += dashLength;
+      return segment;
+    })
+    .filter((s) => s.value > 0);
+
+  return (
+    <div className="flex items-center gap-6">
+      <svg viewBox="0 0 100 100" className="h-32 w-32 -rotate-90">
+        {segments.map((seg) => (
+          <circle
+            key={seg.key}
+            cx="50"
+            cy="50"
+            r={radius}
+            fill="none"
+            stroke={seg.color}
+            strokeWidth="16"
+            strokeDasharray={`${seg.dashLength} ${circumference - seg.dashLength}`}
+            strokeDashoffset={-seg.offset}
+          />
+        ))}
+        {segments.length === 0 && (
+          <circle cx="50" cy="50" r={radius} fill="none" stroke="#e5e7eb" strokeWidth="16" />
+        )}
+      </svg>
+      <div className="flex flex-col gap-1">
+        {segments.map((seg) => (
+          <div key={seg.key} className="flex items-center gap-2 text-xs">
+            <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: seg.color }} />
+            <span className="text-muted-foreground">{seg.label}</span>
+            <span className="font-medium">{seg.value}</span>
+            <span className="text-muted-foreground">({(seg.pct * 100).toFixed(0)}%)</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// --- Summary Dashboard ---
+
+const SummaryDashboard = ({ run }: { run: ReconciliationRun }) => {
+  const { counts } = run;
+  const matureEligible = counts.mature;
+  const proportion = matureEligible > 0
+    ? (counts.withinWindow / matureEligible)
+    : null;
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+        <Card>
+          <CardContent className="py-4 text-center">
+            <p className="text-2xl font-bold">{counts.eligible + counts.notEligible + counts.indeterminate + counts.invalid}</p>
+            <p className="text-xs text-muted-foreground">Total Screens</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="py-4 text-center">
+            <p className="text-2xl font-bold">{counts.eligible}</p>
+            <p className="text-xs text-muted-foreground">Eligible</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="py-4 text-center">
+            <p className="text-2xl font-bold">{matureEligible}</p>
+            <p className="text-xs text-muted-foreground">Mature Eligible</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="py-4 text-center">
+            <p className="text-2xl font-bold">
+              {proportion !== null ? `${(proportion * 100).toFixed(1)}%` : '—'}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Observed Linkage
+              {proportion !== null && (
+                <span className="ml-1 font-mono">({counts.withinWindow}/{matureEligible})</span>
+              )}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Linkage Outcome Distribution (Mature Eligible)</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <DonutChart counts={counts} />
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+// --- Connector colors ---
+
+const CONNECTOR_STYLE: Record<string, { color: string; dash: boolean; icon: React.ReactNode | null }> = {
+  QUALIFYING_RECORD_LINKED_WITHIN_WINDOW: { color: '#3b82f6', dash: false, icon: null },
+  QUALIFYING_RECORD_LINKED_OUTSIDE_WINDOW: { color: '#f59e0b', dash: false, icon: null },
+  NO_LINKED_RECORD_IN_AVAILABLE_DATA: { color: '#9ca3af', dash: true, icon: null },
+  AMBIGUOUS_LINKAGE: { color: '#9ca3af', dash: true, icon: <HelpCircle className="h-3.5 w-3.5 text-gray-500" /> },
+  PARTIAL_OR_NONQUALIFYING_RECORD: { color: '#c4b5fd', dash: true, icon: null },
+  NOT_YET_EVALUABLE: { color: '#d1d5db', dash: true, icon: <Clock className="h-3.5 w-3.5 text-gray-400" /> },
+  DATA_COVERAGE_UNKNOWN: { color: '#e5e7eb', dash: true, icon: <AlertCircle className="h-3.5 w-3.5 text-gray-400" /> },
+};
+
+// --- Timeline ---
+
+const BusinessDayTimeline = ({ decision }: { decision: ReconciliationDecision }) => {
+  const screenDate = new Date(decision.occurredAt);
+
+  // Simple business-day forward calculation for display
+  const addBusinessDays = (date: Date, days: number): Date => {
+    const result = new Date(date);
+    let added = 0;
+    while (added < days) {
+      result.setDate(result.getDate() + 1);
+      const day = result.getDay();
+      if (day !== 0 && day !== 6) added++;
+    }
+    return result;
+  };
+
+  const deadline = addBusinessDays(screenDate, 2);
+
+  const formatDate = (d: Date) =>
+    d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+
+  // Calculate days between screen and assessment for positioning
+  const linkedId = decision.linkedAssessmentId;
+  const isImmature = decision.linkageState === 'NOT_YET_EVALUABLE';
+
+  return (
+    <div className="mt-2 rounded border bg-muted/20 p-3">
+      <div className="relative flex items-center gap-0 text-xs">
+        {/* Screen marker */}
+        <div className="flex flex-col items-center">
+          <div className="h-3 w-3 rounded-full bg-blue-500" />
+          <span className="mt-1 font-mono text-[10px]">{formatDate(screenDate)}</span>
+          <span className="text-[10px] text-muted-foreground">Screen</span>
+        </div>
+
+        {/* Timeline bar */}
+        <div className="mx-2 flex-1">
+          <div className="relative h-1 rounded-full bg-gray-200">
+            <div className="absolute left-0 top-0 h-1 rounded-full bg-blue-300" style={{ width: '50%' }} />
+            <div className="absolute left-[50%] top-0 h-1 rounded-full bg-amber-200" style={{ width: '50%' }} />
+          </div>
+          <div className="mt-0.5 flex justify-between text-[10px] text-muted-foreground">
+            <span>biz day 1</span>
+            <span>biz day 2</span>
+          </div>
+        </div>
+
+        {/* Deadline marker */}
+        <div className="flex flex-col items-center">
+          <div className="h-3 w-3 rounded-full border-2 border-amber-500 bg-white" />
+          <span className="mt-1 font-mono text-[10px]">{formatDate(deadline)}</span>
+          <span className="text-[10px] text-muted-foreground">Deadline</span>
+        </div>
+      </div>
+
+      {/* Assessment position indicator */}
+      {linkedId && decision.linkageState === 'QUALIFYING_RECORD_LINKED_WITHIN_WINDOW' && (
+        <div className="mt-2 text-xs text-blue-700">
+          ✓ Assessment linked within window
+        </div>
+      )}
+      {linkedId && decision.linkageState === 'QUALIFYING_RECORD_LINKED_OUTSIDE_WINDOW' && (
+        <div className="mt-2 text-xs text-amber-700">
+          Assessment linked but outside the 2 business-day window
+        </div>
+      )}
+      {isImmature && (
+        <div className="mt-2 text-xs text-gray-500">
+          <Clock className="mr-1 inline h-3 w-3" />
+          Deadline is in the future — not yet evaluable
+        </div>
+      )}
+    </div>
+  );
+};
+
+// --- Pairing Card ---
+
+const PairingCard = ({
+  decision,
+  orgId,
+  runId,
+}: {
+  decision: ReconciliationDecision;
+  orgId: string;
+  runId: string;
+}) => {
+  const [expanded, setExpanded] = useState(false);
+  const linkBadge = decision.linkageState ? LINKAGE_BADGE[decision.linkageState] : null;
+  const eligBadge = ELIGIBLE_BADGE[decision.eligibilityState];
+  const connector = decision.linkageState ? CONNECTOR_STYLE[decision.linkageState] : null;
+  const isAmbiguous = decision.linkageState === 'AMBIGUOUS_LINKAGE';
+  const hasLink = !!decision.linkedAssessmentId;
+  const isEligible = decision.eligibilityState === 'ELIGIBLE';
+
+  return (
+    <div className="rounded-lg border bg-card">
+      <div
+        className="flex cursor-pointer items-stretch gap-0 p-3"
+        onClick={() => setExpanded(!expanded)}
+        role="button"
+        tabIndex={0}
+        aria-expanded={expanded}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            setExpanded(!expanded);
+          }
+        }}
+      >
+        {/* Screen card (left) */}
+        <div className="flex-1 rounded-md border bg-background p-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-muted-foreground">SCREEN</span>
+            <Badge variant="outline" className={cn('text-[10px]', eligBadge?.className)}>
+              {eligBadge?.label}
+            </Badge>
+          </div>
+          <p className="mt-1 font-mono text-sm font-medium">{decision.syntheticPatientId}</p>
+          <p className="text-xs text-muted-foreground">
+            <Calendar className="mr-1 inline h-3 w-3" />
+            {new Date(decision.occurredAt).toLocaleDateString()}
+          </p>
+          {decision.isMature !== undefined && (
+            <span className="mt-1 inline-block text-[10px] text-muted-foreground">
+              {decision.isMature ? 'Mature' : 'Immature'}
+            </span>
+          )}
+        </div>
+
+        {/* Connector */}
+        <div className="flex w-16 flex-col items-center justify-center">
+          {isEligible && connector ? (
+            <>
+              <svg className="h-1 w-full" viewBox="0 0 64 4">
+                <line
+                  x1="0" y1="2" x2="64" y2="2"
+                  stroke={connector.color}
+                  strokeWidth="2"
+                  strokeDasharray={connector.dash ? '4 3' : 'none'}
+                />
+                <polygon points="58,0 64,2 58,4" fill={connector.color} />
+              </svg>
+              {connector.icon && <div className="mt-0.5">{connector.icon}</div>}
+            </>
+          ) : (
+            <span className="text-xs text-muted-foreground">—</span>
+          )}
+        </div>
+
+        {/* Assessment card (right) */}
+        <div className={cn(
+          'flex-1 rounded-md border p-3',
+          hasLink ? 'bg-background' : 'border-dashed bg-muted/30',
+        )}>
+          {hasLink ? (
+            <>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-muted-foreground">ASSESSMENT</span>
+                {linkBadge && (
+                  <Badge variant="outline" className={cn('text-[10px]', linkBadge.className)}>
+                    {linkBadge.label}
+                  </Badge>
+                )}
+              </div>
+              <p className="mt-1 font-mono text-xs">{decision.linkedAssessmentId}</p>
+            </>
+          ) : isAmbiguous ? (
+            <>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-muted-foreground">CANDIDATES</span>
+                <HelpCircle className="h-3.5 w-3.5 text-gray-400" />
+              </div>
+              <div className="mt-1 space-y-1">
+                {decision.candidateAssessmentIds.map((id) => (
+                  <div key={id} className="rounded border border-dashed px-2 py-0.5 font-mono text-[10px] text-muted-foreground">
+                    {id}
+                  </div>
+                ))}
+              </div>
+              <Badge variant="outline" className="mt-1 text-[10px] bg-gray-100 text-gray-700">
+                Ambiguous — multiple candidates
+              </Badge>
+            </>
+          ) : (
+            <>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-muted-foreground">ASSESSMENT</span>
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground italic">
+                {linkBadge?.label ?? 'No linkage evaluated'}
+              </p>
+            </>
+          )}
+        </div>
+
+        {/* Expand indicator */}
+        <div className="flex items-center pl-2">
+          {expanded ? (
+            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          ) : (
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          )}
+        </div>
+      </div>
+
+      {/* Expanded: timeline + detail panel */}
+      {expanded && (
+        <div className="border-t px-3 pb-3">
+          {isEligible && <BusinessDayTimeline decision={decision} />}
+          <DetailPanel decision={decision} orgId={orgId} runId={runId} />
+        </div>
+      )}
+    </div>
+  );
+};
+
+// --- Pairing View ---
+
+const PairingView = ({
+  decisions,
+  orgId,
+  runId,
+}: {
+  decisions: ReconciliationDecision[];
+  orgId: string;
+  runId: string;
+}) => {
+  return (
+    <div className="space-y-3">
+      {decisions.map((d) => (
+        <PairingCard key={d.id} decision={d} orgId={orgId} runId={runId} />
+      ))}
+    </div>
+  );
+};
+
 // --- Main Page ---
 
 export default function ReconciliationPage({ params }: PageProps) {
   const { organizationId } = use(params);
   const queryClient = useQueryClient();
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'table' | 'visual'>('visual');
 
   const { data: runs, isLoading: runsLoading } = useQuery({
     queryKey: ['reconciliation-runs', organizationId],
@@ -611,8 +981,37 @@ export default function ReconciliationPage({ params }: PageProps) {
               </CardContent>
             </Card>
 
-            <CountTable run={run} />
-            <EventList decisions={run.decisions} orgId={organizationId} runId={run.id} />
+            {/* View toggle */}
+            <div className="flex items-center gap-2">
+              <Button
+                variant={viewMode === 'visual' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setViewMode('visual')}
+              >
+                <BarChart3 className="mr-1 h-4 w-4" />
+                Visual
+              </Button>
+              <Button
+                variant={viewMode === 'table' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setViewMode('table')}
+              >
+                <LayoutList className="mr-1 h-4 w-4" />
+                Table
+              </Button>
+            </div>
+
+            {viewMode === 'visual' ? (
+              <>
+                <SummaryDashboard run={run} />
+                <PairingView decisions={run.decisions} orgId={organizationId} runId={run.id} />
+              </>
+            ) : (
+              <>
+                <CountTable run={run} />
+                <EventList decisions={run.decisions} orgId={organizationId} runId={run.id} />
+              </>
+            )}
           </>
         )}
 
