@@ -1,8 +1,9 @@
 'use client';
 
-import { use, useState } from 'react';
+import React, { use, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Play, Download, FileJson, FileSpreadsheet, Search, ChevronDown, ChevronRight, AlertCircle } from 'lucide-react';
+import { Loader2, Play, FileJson, FileSpreadsheet, Search, ChevronDown, ChevronRight, AlertCircle } from 'lucide-react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,10 +20,10 @@ import {
   type ReconciliationRunSummary,
   type ReconciliationDecision,
   type ReviewStatus,
-  type LinkageState,
   type ReviewAction,
 } from '@/lib/api/reconciliation';
 import { downloadAuthedFile } from '@/lib/download';
+import { sourcesApi } from '@/lib/api/sources';
 import { cn } from '@/lib/utils';
 
 interface PageProps {
@@ -173,6 +174,12 @@ const DetailPanel = ({
 
   const nextStatuses = allowedTransitions[decision.reviewStatus] ?? [];
 
+  const { data: sourceArtifact } = useQuery({
+    queryKey: ['source-artifact', orgId, decision.sourceArtifactId],
+    queryFn: () => sourcesApi.get(orgId, decision.sourceArtifactId!),
+    enabled: !!decision.sourceArtifactId,
+  });
+
   return (
     <div className="space-y-4 border-t bg-muted/30 p-4">
       <div className="rounded border bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900">
@@ -185,10 +192,35 @@ const DetailPanel = ({
           <span className="font-mono">{decision.ruleVersion}</span>
         </div>
         <div>
+          <span className="text-muted-foreground">Effective dates:</span>{' '}
+          {decision.effectiveFrom
+            ? `${new Date(decision.effectiveFrom).toLocaleDateString()} — ${decision.effectiveTo ? new Date(decision.effectiveTo).toLocaleDateString() : 'open-ended'}`
+            : 'N/A'}
+        </div>
+        <div>
           <span className="text-muted-foreground">Coverage:</span>{' '}
           {decision.coverageStatus ?? 'N/A'}
         </div>
+        {decision.sourceArtifactId && (
+          <div>
+            <Link
+              href={`/organizations/${orgId}/reconciliation/sources`}
+              className="text-sm text-blue-600 hover:underline"
+            >
+              View source document
+            </Link>
+          </div>
+        )}
       </div>
+
+      {sourceArtifact?.excerpt && (
+        <div className="text-sm">
+          <span className="text-muted-foreground">Source passage:</span>
+          <blockquote className="mt-1 border-l-2 border-blue-300 pl-3 text-xs italic text-muted-foreground">
+            {sourceArtifact.excerpt}
+          </blockquote>
+        </div>
+      )}
 
       {decision.reasonCodes.length > 0 && (
         <div className="text-sm">
@@ -403,8 +435,6 @@ const EventList = ({
 
 // --- Main Page ---
 
-import React from 'react';
-
 export default function ReconciliationPage({ params }: PageProps) {
   const { organizationId } = use(params);
   const queryClient = useQueryClient();
@@ -470,10 +500,10 @@ export default function ReconciliationPage({ params }: PageProps) {
               Run reconciliation
             </Button>
             <Button variant="outline" asChild>
-              <a href={`/organizations/${organizationId}/reconciliation/sources`}>
+              <Link href={`/organizations/${organizationId}/reconciliation/sources`}>
                 <Search className="mr-2 h-4 w-4" />
                 Sources
-              </a>
+              </Link>
             </Button>
           </div>
         </PageHeader>
@@ -521,14 +551,27 @@ export default function ReconciliationPage({ params }: PageProps) {
         {run && (
           <>
             {/* Run metadata */}
-            <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
-              <span>Engine: <span className="font-mono">{run.engineVersion}</span></span>
-              <span>Config hash: <span className="font-mono">{run.configHash}</span></span>
-              <span>As-of: {new Date(run.asOf).toLocaleString()}</span>
-              {run.coverageManifest && (
-                <span>Coverage: {run.coverageManifest.coverageStatus}</span>
-              )}
-            </div>
+            <Card>
+              <CardContent className="py-3">
+                <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted-foreground">
+                  <span>Engine: <span className="font-mono">{run.engineVersion}</span></span>
+                  <span>Config hash: <span className="font-mono">{run.configHash}</span></span>
+                  <span>As-of: {new Date(run.asOf).toLocaleString()}</span>
+                </div>
+                {run.coverageManifest && (
+                  <div className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted-foreground">
+                    <span>Coverage: <span className="font-medium text-foreground">{run.coverageManifest.coverageStatus}</span></span>
+                    <span>Extraction cutoff: {new Date(run.coverageManifest.extractionCutoff).toLocaleString()}</span>
+                    {run.coverageManifest.knownMissingFeeds.length > 0 && (
+                      <span className="flex items-center gap-1">
+                        <AlertCircle className="h-3 w-3 text-amber-500" />
+                        Missing feeds: {run.coverageManifest.knownMissingFeeds.join(', ')}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
             <CountTable run={run} />
             <EventList decisions={run.decisions} orgId={organizationId} runId={run.id} />

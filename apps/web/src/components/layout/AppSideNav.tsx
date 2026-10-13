@@ -2,19 +2,14 @@
 
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { Building2, LayoutDashboard, Settings } from 'lucide-react';
+import { Activity, FileText, Settings } from 'lucide-react';
 import SidebarNav from '@/components/ui/SidebarNav';
 
 const SIDE_NAV_ITEMS = [
-  { path: '/dashboard', label: 'Home', icon: LayoutDashboard },
-  { path: '/organizations', label: 'Organizations', icon: Building2 },
+  { path: '/dashboard', label: 'Home', icon: Activity },
   { path: '/settings', label: 'Settings', icon: Settings },
 ];
 
-/**
- * Main app sidebar using the shared SidebarNav.
- * Home → /dashboard, plus organizations and settings.
- */
 export function AppSideNav() {
   const pathname = usePathname();
 

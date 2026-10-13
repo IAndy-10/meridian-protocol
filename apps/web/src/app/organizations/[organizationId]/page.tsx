@@ -1,18 +1,14 @@
 'use client';
 
-import { use, useState } from 'react';
+import { use } from 'react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
-import { FolderOpen, Loader2, Plus, Settings, UserPlus } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { Activity, FileText, Loader2, Settings } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { EmptyState } from '@/components/ui/empty-state';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { InviteOrganizationMembersDialog } from '@/components/organizations/InviteOrganizationMembersDialog';
+import { Button } from '@/components/ui/button';
 import { organizationsApi } from '@/lib/organizations-api';
-import { projectsApi } from '@/lib/projects-api';
 
 interface PageProps {
   params: Promise<{ organizationId: string }>;
@@ -20,25 +16,11 @@ interface PageProps {
 
 export default function OrganizationPage({ params }: PageProps) {
   const { organizationId } = use(params);
-  const [inviteOpen, setInviteOpen] = useState(false);
 
   const { data: organization, isLoading } = useQuery({
     queryKey: ['organization', organizationId],
     queryFn: () => organizationsApi.getOrganization(organizationId),
   });
-
-  const { data: roleInfo } = useQuery({
-    queryKey: ['organization-role', organizationId],
-    queryFn: () => organizationsApi.getUserRoleInOrganization(organizationId),
-  });
-
-  const { data: projects } = useQuery({
-    queryKey: ['projects', organizationId],
-    queryFn: () => projectsApi.list(organizationId),
-  });
-
-  const canManage = roleInfo?.role === 'OWNER' || roleInfo?.role === 'ADMIN';
-  const projectCount = projects?.total ?? 0;
 
   if (isLoading) {
     return (
@@ -54,7 +36,7 @@ export default function OrganizationPage({ params }: PageProps) {
     return (
       <PageContainer>
         <div className="mx-auto max-w-4xl px-4 py-16 text-center text-muted-foreground">
-          Organization not found, or you no longer have access to it.
+          Organization not found.
         </div>
       </PageContainer>
     );
@@ -63,92 +45,49 @@ export default function OrganizationPage({ params }: PageProps) {
   return (
     <PageContainer>
       <div className="mx-auto max-w-4xl space-y-8 px-4 py-8">
-        <PageHeader title={organization.name} description={organization.description || undefined}>
-          <div className="flex gap-2">
-            {canManage && (
-              <Button variant="outline" onClick={() => setInviteOpen(true)}>
-                <UserPlus className="mr-2 h-4 w-4" />
-                Invite
-              </Button>
-            )}
-            <Button variant="outline" asChild>
-              <Link href={`/organizations/${organizationId}/settings`}>
-                <Settings className="mr-2 h-4 w-4" />
-                Settings
-              </Link>
-            </Button>
-          </div>
+        <PageHeader title={organization.name} description="Meridian Protocol — Screening-to-Assessment Reconciliation">
+          <Button variant="outline" asChild>
+            <Link href={`/organizations/${organizationId}/settings`}>
+              <Settings className="mr-2 h-4 w-4" />
+              Settings
+            </Link>
+          </Button>
         </PageHeader>
 
-        <section className="space-y-4">
-          <div className="flex items-center justify-between gap-4">
-            <h2 className="text-lg font-medium">
-              Projects
-              <span className="ml-2 text-sm font-normal text-muted-foreground">{projectCount}</span>
-            </h2>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Link href={`/organizations/${organizationId}/reconciliation`}>
+            <Card className="h-full transition-colors hover:border-primary cursor-pointer">
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <Activity className="h-5 w-5 text-primary" />
+                  <CardTitle className="text-base">Reconciliation</CardTitle>
+                </div>
+                <CardDescription>
+                  Run reconciliation, view counts, inspect linkage decisions, and review exceptions.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          </Link>
 
-            <Button asChild size="sm">
-              <Link href={`/organizations/${organizationId}/projects/create`}>
-                <Plus className="mr-2 h-4 w-4" />
-                New project
-              </Link>
-            </Button>
-          </div>
+          <Link href={`/organizations/${organizationId}/reconciliation/sources`}>
+            <Card className="h-full transition-colors hover:border-primary cursor-pointer">
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <FileText className="h-5 w-5 text-primary" />
+                  <CardTitle className="text-base">Sources</CardTitle>
+                </div>
+                <CardDescription>
+                  Search and inspect source artifacts — publications and synthetic procedures.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          </Link>
+        </div>
 
-          {projects && projects.items.length === 0 && (
-            <EmptyState
-              icon={FolderOpen}
-              title="No projects yet"
-              description="Projects are the example vertical in this boilerplate. Replace them with your own domain."
-              action={
-                <Button asChild>
-                  <Link href={`/organizations/${organizationId}/projects/create`}>
-                    Create a project
-                  </Link>
-                </Button>
-              }
-            />
-          )}
-
-          <div className="grid gap-3">
-            {projects?.items.map((project) => (
-              <Link
-                key={project.id}
-                href={`/organizations/${organizationId}/projects/${project.id}`}
-              >
-                <Card className="transition-colors hover:border-primary">
-                  <CardHeader className="py-4">
-                    <div className="flex items-center justify-between gap-2">
-                      <CardTitle className="text-base">{project.name}</CardTitle>
-                      <div className="flex items-center gap-2">
-                        {project.archivedAt && <Badge variant="outline">Archived</Badge>}
-                        <Badge variant="secondary">{project.visibility.toLowerCase()}</Badge>
-                      </div>
-                    </div>
-                    {project.description && (
-                      <CardDescription>{project.description}</CardDescription>
-                    )}
-                  </CardHeader>
-                </Card>
-              </Link>
-            ))}
-          </div>
-        </section>
-
-        {organization.location && (
-          <Card>
-            <CardContent className="py-4 text-sm text-muted-foreground">
-              {organization.location}
-            </CardContent>
-          </Card>
-        )}
+        <p className="text-xs text-muted-foreground text-center">
+          SYNTHETIC — NOT AN APPROVED CLINICAL PROCEDURE. All data is synthetic.
+        </p>
       </div>
-
-      <InviteOrganizationMembersDialog
-        open={inviteOpen}
-        onOpenChange={setInviteOpen}
-        defaultOrganizationId={organizationId}
-      />
     </PageContainer>
   );
 }

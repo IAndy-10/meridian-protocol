@@ -27,6 +27,9 @@ export interface ReconciliationDecision {
   linkedAssessmentId: string | null;
   candidateAssessmentIds: string[];
   ruleVersion: string;
+  effectiveFrom: string | null;
+  effectiveTo: string | null;
+  sourceArtifactId: string | null;
   reviewStatus: ReviewStatus;
   isMature: boolean;
   coverageStatus: string | null;

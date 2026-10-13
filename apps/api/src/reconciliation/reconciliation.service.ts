@@ -241,22 +241,36 @@ export class ReconciliationService {
   }
 
   private toSummary(run: ReconciliationRun): ReconciliationRunSummaryDto {
+    const summary = run.summaryJson as Record<string, number> | null;
     return {
       id: run.id,
-      organizationId: run.organizationId,
-      configurationHash: run.configurationHash,
-      engineVersion: run.engineVersion,
-      asOf: run.asOf.toISOString(),
-      extractionHash: run.extractionHash,
-      summaryJson: run.summaryJson,
       createdAt: run.createdAt.toISOString(),
+      asOf: run.asOf.toISOString(),
+      configHash: run.configurationHash,
+      engineVersion: run.engineVersion,
+      protocolVersionId: (run as any).protocolVersionId ?? '',
+      counts: {
+        eligible: summary?.eligible ?? 0,
+        notEligible: summary?.notEligible ?? 0,
+        indeterminate: summary?.indeterminate ?? 0,
+        invalid: summary?.invalid ?? 0,
+        mature: summary?.mature ?? 0,
+        immature: summary?.immature ?? 0,
+        withinWindow: summary?.withinWindow ?? 0,
+        outsideWindow: summary?.outsideWindow ?? 0,
+        ambiguous: summary?.ambiguous ?? 0,
+        partial: summary?.partial ?? 0,
+        absent: summary?.absent ?? 0,
+        coverageUnknown: summary?.coverageUnknown ?? 0,
+      },
     };
   }
 
   private toDetail(run: ReconciliationRun): ReconciliationRunDetailDto {
     return {
       ...this.toSummary(run),
-      decisionsJson: run.decisionsJson,
+      decisions: (run.decisionsJson as unknown[]) ?? [],
+      coverageManifest: null,
     };
   }
 }

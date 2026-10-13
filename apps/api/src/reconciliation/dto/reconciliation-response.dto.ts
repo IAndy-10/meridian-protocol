@@ -1,19 +1,34 @@
-export class ReconciliationRunSummaryDto {
+export interface ReconciliationCounts {
+  eligible: number;
+  notEligible: number;
+  indeterminate: number;
+  invalid: number;
+  mature: number;
+  immature: number;
+  withinWindow: number;
+  outsideWindow: number;
+  ambiguous: number;
+  partial: number;
+  absent: number;
+  coverageUnknown: number;
+}
+
+export interface ReconciliationRunSummaryDto {
   id: string;
-  organizationId: string;
-  configurationHash: string;
-  engineVersion: string;
-  asOf: string;
-  extractionHash: string;
-  summaryJson: unknown;
   createdAt: string;
+  asOf: string;
+  configHash: string;
+  engineVersion: string;
+  protocolVersionId: string;
+  counts: ReconciliationCounts;
 }
 
-export class ReconciliationRunDetailDto extends ReconciliationRunSummaryDto {
-  decisionsJson: unknown;
+export interface ReconciliationRunDetailDto extends ReconciliationRunSummaryDto {
+  decisions: unknown[];
+  coverageManifest: unknown | null;
 }
 
-export class ReconciliationRunListDto {
+export interface ReconciliationRunListDto {
   items: ReconciliationRunSummaryDto[];
   total: number;
 }

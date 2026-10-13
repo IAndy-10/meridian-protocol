@@ -20,15 +20,15 @@ export async function generateMetadata(): Promise<Metadata> {
   const host = headersList.get('host') || '';
 
   const defaultMetadata: Metadata = {
-    title: 'App Starter',
+    title: 'Meridian Protocol',
     description:
-      'A multi-tenant SaaS starter with authentication, organizations, and invites already wired up.',
+      'Screening-to-assessment reconciliation demonstrator for behavioral health QI.',
     icons: {
       icon: '/images/favicon.png',
     },
   };
 
-  // Only attempt resolution if not on the main App Starter domain or localhost
+  // Only attempt resolution if not on the main AegisBrain domain or localhost
   const isMainDomain = host.includes('example.com') || host.includes('localhost');
   if (!isMainDomain && host) {
     try {
@@ -74,7 +74,7 @@ export default async function RootLayout({
   let customLogoUrl: string | null = null;
   let logoHeight: number | null = null;
 
-  // Only attempt resolution if not on the main App Starter domain or localhost
+  // Only attempt resolution if not on the main AegisBrain domain or localhost
   const isMainDomain = host.includes('example.com') || host.includes('localhost');
   if (!isMainDomain && host) {
     try {

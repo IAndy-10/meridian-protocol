@@ -43,7 +43,7 @@ export function useNotifications() {
 
         if (reset) setPage(1);
       } catch (error) {
-        console.error('Failed to fetch notifications:', error);
+        // Silently ignore — notifications are a template feature, not used by Meridian
       } finally {
         setIsLoading(false);
       }
