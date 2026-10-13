@@ -14,6 +14,11 @@ export interface KnowledgeDocument {
 export interface IngestDocumentRequest {
   title: string;
   content: string;
+  artifactKind?: string;
+  linkedProtocolVersions?: string[];
+  topicTags?: string[];
+  publicationDate?: string;
+  sectionHeading?: string;
   metadata?: Record<string, unknown>;
 }
 

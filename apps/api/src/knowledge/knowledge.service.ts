@@ -74,11 +74,20 @@ export class KnowledgeService {
     });
 
     try {
+      const enrichedMetadata: Record<string, unknown> = {
+        ...data.metadata,
+        ...(data.artifactKind && { artifact_kind: data.artifactKind }),
+        ...(data.linkedProtocolVersions?.length && { linked_protocol_versions: data.linkedProtocolVersions }),
+        ...(data.topicTags?.length && { topic_tags: data.topicTags }),
+        ...(data.publicationDate && { publication_date: data.publicationDate }),
+        ...(data.sectionHeading && { section_heading: data.sectionHeading }),
+      };
+
       const sourceIds = await this.hydraDb.ingestDocument(database, collection, {
         id: doc.id,
         title: data.title,
         content: data.content,
-        metadata: data.metadata,
+        metadata: Object.keys(enrichedMetadata).length > 0 ? enrichedMetadata : undefined,
       });
 
       const updatedDoc = await this.prisma.knowledgeDocument.update({

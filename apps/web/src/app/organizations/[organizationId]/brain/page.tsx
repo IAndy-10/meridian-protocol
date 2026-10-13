@@ -54,7 +54,12 @@ export default function BrainPage({ params }: PageProps) {
   const { organizationId } = use(params);
   const queryClient = useQueryClient();
 
-  const [uploadForm, setUploadForm] = useState({ title: '', content: '' });
+  const [uploadForm, setUploadForm] = useState({
+    title: '',
+    content: '',
+    artifactKind: '',
+    topicTags: '',
+  });
   const [searchQuery, setSearchQuery] = useState('');
   const [showUpload, setShowUpload] = useState(false);
 
@@ -69,14 +74,21 @@ export default function BrainPage({ params }: PageProps) {
   });
 
   const ingestMutation = useMutation({
-    mutationFn: () =>
-      knowledgeApi.ingest(organizationId, {
+    mutationFn: () => {
+      const tags = uploadForm.topicTags
+        .split(',')
+        .map((t) => t.trim())
+        .filter(Boolean);
+      return knowledgeApi.ingest(organizationId, {
         title: uploadForm.title,
         content: uploadForm.content,
-      }),
+        ...(uploadForm.artifactKind && { artifactKind: uploadForm.artifactKind }),
+        ...(tags.length > 0 && { topicTags: tags }),
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['knowledge-docs', organizationId] });
-      setUploadForm({ title: '', content: '' });
+      setUploadForm({ title: '', content: '', artifactKind: '', topicTags: '' });
       setShowUpload(false);
     },
   });
@@ -195,6 +207,30 @@ export default function BrainPage({ params }: PageProps) {
                       setUploadForm((f) => ({ ...f, content: e.target.value }))
                     }
                   />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="doc-kind">Document kind (optional)</Label>
+                    <Input
+                      id="doc-kind"
+                      placeholder="e.g., policy_memo, audit_finding, training_material"
+                      value={uploadForm.artifactKind}
+                      onChange={(e) =>
+                        setUploadForm((f) => ({ ...f, artifactKind: e.target.value }))
+                      }
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="doc-tags">Topic tags (optional, comma-separated)</Label>
+                    <Input
+                      id="doc-tags"
+                      placeholder="e.g., business-day, eligibility, C-SSRS"
+                      value={uploadForm.topicTags}
+                      onChange={(e) =>
+                        setUploadForm((f) => ({ ...f, topicTags: e.target.value }))
+                      }
+                    />
+                  </div>
                 </div>
                 <div className="flex gap-2">
                   <Button type="submit" disabled={ingestMutation.isPending}>
