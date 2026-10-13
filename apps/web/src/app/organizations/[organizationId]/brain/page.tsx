@@ -312,6 +312,32 @@ export default function BrainPage({ params }: PageProps) {
           </CardContent>
         </Card>
 
+        {/* Connections (graph context) */}
+        {searchMutation.data?.connections && searchMutation.data.connections.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Connections</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {searchMutation.data.connections.map((c, idx) => (
+                <div
+                  key={idx}
+                  className="flex items-center gap-3 rounded border p-2 text-sm"
+                >
+                  <span className="font-medium truncate max-w-[200px]">{c.from}</span>
+                  <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <span className="inline-block h-px w-8 bg-border" />
+                    {c.relation}
+                    <span className="inline-block h-px w-8 bg-border" />
+                    →
+                  </span>
+                  <span className="font-medium truncate max-w-[200px]">{c.to}</span>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
+
         {/* Knowledge documents */}
         {docsLoading ? (
           <div className="flex justify-center py-12">

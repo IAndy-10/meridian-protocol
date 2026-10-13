@@ -21,7 +21,18 @@ export class KnowledgeQueryResultDto {
     score: number;
   }>;
   graphContext?: {
-    queryPaths: unknown[];
-    chunkRelations: unknown[];
+    queryPaths: Array<{
+      from: string;
+      to: string;
+      relation: string;
+      weight: number;
+    }>;
+    chunkRelations: Array<{
+      sourceChunkId: string;
+      targetChunkId: string;
+      relation: string;
+      sourceText?: string;
+      targetText?: string;
+    }>;
   };
 }

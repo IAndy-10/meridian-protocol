@@ -165,16 +165,28 @@ export class KnowledgeService {
 
     const result = await this.hydraDb.query(database, collection, queryText, options);
 
+    const graphCtx = result.data.graph_context;
     return {
       chunks: (result.data.chunks ?? []).map((chunk) => ({
         text: chunk.text,
         sourceId: chunk.source_id,
         score: chunk.score,
       })),
-      graphContext: result.data.graph_context
+      graphContext: graphCtx
         ? {
-            queryPaths: result.data.graph_context.query_paths ?? [],
-            chunkRelations: result.data.graph_context.chunk_relations ?? [],
+            queryPaths: (graphCtx.query_paths ?? []).map((p: any) => ({
+              from: String(p.from ?? p.source ?? ''),
+              to: String(p.to ?? p.target ?? ''),
+              relation: String(p.relation ?? p.type ?? 'related'),
+              weight: Number(p.weight ?? p.score ?? 1),
+            })),
+            chunkRelations: (graphCtx.chunk_relations ?? []).map((r: any) => ({
+              sourceChunkId: String(r.source_chunk_id ?? r.source ?? ''),
+              targetChunkId: String(r.target_chunk_id ?? r.target ?? ''),
+              relation: String(r.relation ?? r.type ?? 'related'),
+              sourceText: r.source_text,
+              targetText: r.target_text,
+            })),
           }
         : undefined,
     };
@@ -192,6 +204,11 @@ export class KnowledgeService {
       score: number;
       collection: string;
     }>;
+    connections: Array<{
+      from: string;
+      to: string;
+      relation: string;
+    }>;
   }> {
     this.requireConfigured();
     await this.requireRole(userId, organizationId, KnowledgeService.WRITE_ROLES, 'query');
@@ -201,11 +218,11 @@ export class KnowledgeService {
 
     const [knowledgeResult, sourcesResult] = await Promise.allSettled([
       this.hydraDb.query(database, 'knowledge', queryText, {
-        graphContext: false,
+        graphContext: true,
         maxResults: limit,
       }),
       this.hydraDb.query(database, 'source_artifacts', queryText, {
-        graphContext: false,
+        graphContext: true,
         maxResults: limit,
       }),
     ]);
@@ -239,8 +256,25 @@ export class KnowledgeService {
       }
     }
 
+    // Extract connections from graph context
+    const connections: Array<{ from: string; to: string; relation: string }> = [];
+    for (const settledResult of [knowledgeResult, sourcesResult]) {
+      if (settledResult.status === 'fulfilled') {
+        const gc = settledResult.value.data.graph_context;
+        if (gc?.query_paths) {
+          for (const p of gc.query_paths as any[]) {
+            connections.push({
+              from: String(p.from ?? p.source ?? ''),
+              to: String(p.to ?? p.target ?? ''),
+              relation: String(p.relation ?? p.type ?? 'related'),
+            });
+          }
+        }
+      }
+    }
+
     results.sort((a, b) => b.score - a.score);
-    return { results: results.slice(0, limit) };
+    return { results: results.slice(0, limit), connections };
   }
 
   async remove(

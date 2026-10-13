@@ -61,7 +61,10 @@ export const sourcesApi = {
     }),
 
   unifiedSearch: (orgId: string, query: string, maxResults?: number) =>
-    apiClient.post<{ results: UnifiedSearchResult[] }>(
+    apiClient.post<{
+      results: UnifiedSearchResult[];
+      connections: Array<{ from: string; to: string; relation: string }>;
+    }>(
       `/api/organizations/${orgId}/knowledge/unified-search`,
       { query, maxResults },
     ),
